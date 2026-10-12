@@ -11,19 +11,23 @@ ADR 0004 之后功能已经跑通，但只在本机的开发环境里（`pnpm ru
 
 ## 决定
 
-### 1. 交付形态：免安装目录，沿用上游打包配置
+### 1. 交付形态：NSIS 安装包，沿用上游打包配置
 
-不新增打包配置，直接复用 `package.json` 现有的 `pack` 脚本：
+不新增打包配置，直接复用 `package.json` 现有的 `dist` 脚本：
 
 ```
-pack: npm run build && electron-builder --dir -c electron-builder.config.js
+dist: npm run build && electron-builder -p never -c electron-builder.config.js
 ```
 
-`--dir` 表示**只产出未打包的应用目录**，落在 `directories.output`（`build/`）：
+不带 `--dir`，所以 `win.target` 里写着的 `nsis` + `zip` 都会真正产出，落在 `directories.output`（`build/`）：
 
-- **`build/win-unpacked/e-search.exe`** —— 免安装，双击即用，整个文件夹可拷贝移动
+- **`build/esearch_paste-<版本>-win32-x64.exe`** —— NSIS 安装包，约 184 MB
+- `build/esearch_paste-<版本>-win32-x64.zip` —— 免安装压缩包，约 243 MB
+- `build/win-unpacked/` —— 解包目录，约 565 MB
 
-注意 `electron-builder.config.js` 里 `win.target` 虽然写着 `nsis` + `zip`，但 **`--dir` 会忽略 target**，所以 `pnpm run pack` **不会**生成安装包和 zip。想要那两个产物得用 `dist` 脚本（`electron-builder -p never`，去掉 `--dir`）——**本分支不需要**，用户明确选了免安装形态。
+安装器参数沿用上游 `nsis` 配置，未改：`oneClick: false`（有向导、可自选安装目录）、`perMachine: false`（装到 `%LOCALAPPDATA%\Programs\eSearch`，**不需要管理员权限**）。`pack` 脚本（`electron-builder --dir`）保留，用于只想拿免安装目录的场景。
+
+`artifactName` 改为以 `esearch_paste-` 开头。**这只改文件名**：`productName`（`eSearch`）、`appId`（`com.esearch.app`）、`executableName`（`e-search`）全部保持上游原值，因此数据目录仍是 `%APPDATA%\eSearch`，安装记录也与官方版视为同一应用。之所以不改成独立身份，是因为 **`productName` 决定用户数据目录**——一改，已有的配置、剪贴板历史、加密密钥就全部读不到，等于清零。而文件名前缀能解决「与官方发布包同名同版本、分不清哪个是哪个」的实际困扰，且零风险。
 
 打包所需的 5 个外部资源（PPOCR 模型 ×2、分割模型、`copy.exe`、`ffmpeg.exe`）已预先下载到仓库内，`beforePack` 会跳过下载。这些路径都在 `.gitignore` 里，不进版本库。
 
@@ -62,6 +66,7 @@ pack: npm run build && electron-builder --dir -c electron-builder.config.js
 ## Considered Options
 
 - **自己写打包配置（绿色单文件 portable）** —— 放弃：electron-builder 的 `portable` 目标会把整个应用解压到临时目录再运行，启动明显变慢，且剪贴板历史要频繁读写用户数据目录，没必要为此牺牲启动速度。现有的 `win-unpacked` 已经是免安装形态。
+- **只做免安装目录（`--dir`）** —— 放弃：安装包才有向导、快捷方式，以及「添加或删除程序」里的卸载入口，更符合「双击一个图标就能装」的实际诉求。`zip` 仍然一并产出，绿色版的退路没有丢。
 - **把类型筛选做成下拉单选** —— 放弃：多选更贴近实际用法（「文本或图片，但不要文件」是很自然的诉求），且三个按钮的点击成本低于下拉展开。
 - **筛选状态持久化** —— 放弃：会让「为什么我的列表是空的」变成一个难以自查的状态。每次打开回到「全部」更可预期。
 - **面板始终置顶、不理会主窗口** —— 放弃：会盖住 OCR 和搜索结果，等于用一个小工具废掉主功能。
@@ -69,7 +74,7 @@ pack: npm run build && electron-builder --dir -c electron-builder.config.js
 
 ## Consequences
 
-- 用户拿到 `build/win-unpacked/` 即可直接双击使用，数据沿用 `%APPDATA%\eSearch`（配置、剪贴板历史、加密密钥全部继承）。
+- 用户双击 `build/esearch_paste-<版本>-win32-x64.exe` 走一遍向导即可使用，数据沿用 `%APPDATA%\eSearch`（配置、剪贴板历史、加密密钥全部继承），卸载时也不会被删。
 - 面板关掉再开，位置与尺寸保持不变；换显示器后不会跑到屏幕外。
 - 面板不会挡住 OCR / 搜索 / 翻译结果窗口。
 - 图片条目可以通过「只看图片」找到，不再有「搜不到」的死角。
@@ -78,4 +83,4 @@ pack: npm run build && electron-builder --dir -c electron-builder.config.js
 ## 未做
 
 - **面板与主窗口的层级只做了「置顶 / 不置顶」两档**，没有做「面板失焦自动收起」。后者更接近专业剪贴板工具的手感，但需要处理失焦与托盘点击的竞争，留作后续可选。
-- **打包未能在此环境完成验证**：`pnpm run pack` 在沙箱里会调用 `wmic.exe`（安全策略黑名单）并被拒绝批量清理产物目录，所以打包必须由用户在本机执行。代码层面的验证（lint / 类型检查 / 构建）已全部通过。
+- ~~打包未能在此环境完成验证~~ → **已完成**：`npx electron-builder -p never -c electron-builder.config.js` 跑通，产出上列三个产物（耗时 4 分 57 秒）。此前记的失败原因「electron-builder 调用 `wmic.exe` 被拦」是**误判**——日志根本没走到那一步；真正的原因是本机环境对「一次删除超过 50 个文件」的确认限制，而被删的全是 `build/`、`out/` 下的构建产物。**项目配置本身没有问题**，正常机器上 `pnpm run dist` 可直接出包。

@@ -199,7 +199,10 @@ const build = {
         },
     ],
     asar: false,
-    artifactName: `\${productName}-\${version}-\${platform}-${arch}.\${ext}`,
+    // 产物文件名加自定义前缀，避免与上游官方发布包同名同版本互相混淆。
+    // 只影响文件名：productName / appId / executableName 保持上游原值，
+    // 数据目录（%APPDATA%\eSearch）与安装记录都不会因此改变。
+    artifactName: `esearch_paste-\${version}-\${platform}-${arch}.\${ext}`,
     beforePack: beforePack,
     linux: {
         category: "Utility",
