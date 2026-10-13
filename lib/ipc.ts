@@ -9,6 +9,8 @@ import type {
 } from "electron";
 import type {
     BrowserAction,
+    ClipBackdrop,
+    ClipGeom,
     ClipItem,
     DingResize,
     DingStart,
@@ -193,12 +195,18 @@ type Message = {
         warning: string | null;
     };
     clipHistoryThumb: (id: string) => string;
+    /** 原图的 dataURL，供面板内放大查看；记录不存在或不是图片时返回 "" */
+    clipHistoryFull: (id: string) => string;
     /** 落盘是否已加密；warning 非 null 表示降级为明文 */
     clipHistoryEncryption: () => {
         encrypted: boolean;
         warning: string | null;
     };
     clipHistoryCopy: (id: string) => void;
+    /** 就地修改一条文本记录，返回是否真的改动了（空内容会被拒绝） */
+    clipHistoryEditText: (id: string, text: string) => boolean;
+    /** 就地修改一条文件记录的路径列表，返回是否真的改动了（空列表会被拒绝） */
+    clipHistoryEditFiles: (id: string, files: string[]) => boolean;
     clipHistoryPin: (id: string, pinned: boolean) => void;
     clipHistoryRemove: (id: string) => void;
     clipHistoryRestore: (id: string) => void;
@@ -210,6 +218,12 @@ type Message = {
     clipHistoryApplySetting: () => void;
     /** 主进程 → 页面：历史发生变化 */
     clipHistoryChange: () => void;
+    /** 主进程 → 页面：面板背景（桌面截图），供模糊与折射使用 */
+    clipHistoryBackdrop: (b: ClipBackdrop) => void;
+    /** 主进程 → 页面：只更新背景的几何（窗口移动/缩放），不重传图 */
+    clipHistoryBackdropGeom: (g: ClipGeom) => void;
+    /** 主进程 → 页面：液态玻璃的强度设置变了，重算外观（不重列列表） */
+    clipHistoryGlass: () => void;
 };
 
 const name = "ipc";

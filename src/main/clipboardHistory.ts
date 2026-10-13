@@ -455,6 +455,52 @@ export default class ClipboardHistory {
         this.emit();
     }
 
+    /**
+     * 修改一条文本记录的内容。
+     * 内容变了就必须重算 hash，否则去重与「复制回剪贴板」的回声抑制都会对不上；
+     * 新内容若与另一条记录撞车，则合并掉另一条。内容被清空时拒绝保存，
+     * 免得留下一条没有内容的记录。
+     */
+    editText(id: string, text: string): boolean {
+        const item = this.items.find((i) => i.id === id);
+        if (!item || item.deleted || item.type !== "text") return false;
+        if (!text.trim() || text === item.text) return false;
+        item.text = text;
+        this.rehash(item, hashOf(text));
+        this.save();
+        this.emit();
+        return true;
+    }
+
+    /** 修改一条文件记录里的路径列表，规则同 editText */
+    editFiles(id: string, files: string[]): boolean {
+        const item = this.items.find((i) => i.id === id);
+        if (!item || item.deleted || item.type !== "file") return false;
+        const list = files.map((f) => f.trim()).filter((f) => f.length > 0);
+        const joined = list.join("\u0000");
+        if (list.length === 0 || joined === (item.files ?? []).join("\u0000"))
+            return false;
+        item.files = list;
+        this.rehash(item, hashOf(joined));
+        this.save();
+        this.emit();
+        return true;
+    }
+
+    /** 重算 hash 并维护 byHash 索引；与另一条重复时删掉另一条，固定状态并入本条 */
+    private rehash(item: ClipItem, hash: string) {
+        if (item.hash === hash) return;
+        this.byHash.delete(item.hash);
+        const other = this.byHash.get(hash);
+        if (other && other !== item) {
+            if (other.pinned) item.pinned = true;
+            this.removeFile(other);
+            this.items = this.items.filter((i) => i !== other);
+        }
+        item.hash = hash;
+        this.byHash.set(hash, item);
+    }
+
     /** 软删除：移入回收站 */
     remove(id: string) {
         const item = this.items.find((i) => i.id === id);

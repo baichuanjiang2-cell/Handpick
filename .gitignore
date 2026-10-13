@@ -20,3 +20,5 @@ script/make_aur/*.aur
 script/make_aur/e-search/usr/share/applications/e-search.desktop
 *.tsbuildinfo
 .workbuddy-ai/
+.mimosa/
+.probe-*

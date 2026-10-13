@@ -285,6 +285,21 @@ export interface setting {
         窗口大小: [number, number];
         /** 面板窗口上次的坐标 [x, y]；[-1, -1] 表示尚未记录 */
         窗口位置: [number, number];
+        /**
+         * 唤出面板时使用的尺寸档位。百分比以屏幕工作区（排除任务栏）为基准；
+         * 「默认」表示沿用 `窗口大小` 记住的尺寸。
+         */
+        窗口尺寸: "默认" | "50%" | "75%" | "100%";
+        /**
+         * 液态玻璃前景光学层的强度（边缘高光 / 跟随指针的反光 / 颗粒）。
+         * 0 表示关闭，退回实心外观。
+         */
+        玻璃强度: number;
+        /**
+         * 背景透过玻璃时被弯曲的程度。0 表示只模糊不折射；
+         * 与 `玻璃强度` 同时为 0 时不采集桌面，完全不产生额外开销。
+         */
+        折射强度: number;
     };
     时间格式: string;
     硬件加速: boolean;
@@ -496,7 +511,6 @@ type MainWinType = {
 };
 
 type ClipItemType = "text" | "image" | "file";
-
 /** 一条剪贴板历史记录 */
 type ClipItem = {
     id: string;
@@ -510,6 +524,34 @@ type ClipItem = {
     image?: string;
     w?: number;
     h?: number;
+};
+
+/**
+ * 剪贴板面板背景的几何信息。
+ *
+ * 渲染层要按「截图 ↔ 显示器 ↔ 面板内容区」三层坐标把图摆正：图是屏幕对齐的，
+ * 面板视口只看到屏幕的一部分，所以图要往左上偏移「显示器原点 − 内容区原点」。
+ *
+ * 窗口移动/缩放时只推这个、不重新截图：改一下偏移就摆正了，图全程不被重采样。
+ */
+export type ClipGeom = {
+    /** 截图所在显示器在屏幕坐标里的位置与尺寸（DIP） */
+    disp: { x: number; y: number; width: number; height: number };
+    /** 面板内容区（不含边框）在屏幕坐标里的位置与尺寸（DIP） */
+    content: { x: number; y: number; width: number; height: number };
+};
+
+/**
+ * 剪贴板面板的背景：主进程截下来的一张桌面图，供渲染层做模糊与折射。
+ *
+ * 只可能在面板隐藏时采集——面板可见时截图必然把面板自己也拍进去，
+ * 中间那块是「镜中镜」，会把面板画成自己的背景。
+ */
+export type ClipBackdrop = ClipGeom & {
+    /** JPEG 数据 */
+    data: Uint8Array;
+    /** 截图的实际像素尺寸，用来算像素比（可能不是整数倍） */
+    px: { width: number; height: number };
 };
 
 type translateWinType = {
