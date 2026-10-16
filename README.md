@@ -1,271 +1,222 @@
-# eSearch
+# eSearch-paste
 
-(中文 | [English](README_en.md))
+（中文 | [English](README_en.md)）
 
-![LOGO](https://esearch-app.netlify.app/readme/title_photo.svg)
 [![license](https://img.shields.io/github/license/xushengfeng/eSearch)](LICENSE)
-![platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)
-![commit-activity](https://img.shields.io/github/commit-activity/m/xushengfeng/eSearch)
-[![release-date](https://img.shields.io/github/release-date/xushengfeng/eSearch)](https://github.com/xushengfeng/eSearch/releases/latest)
-[![release](https://img.shields.io/github/v/release/xushengfeng/eSearch)](https://github.com/xushengfeng/eSearch/releases/latest)
-[![](https://img.shields.io/github/downloads/xushengfeng/eSearch/total?color=brightgreen&label=总下载量)](https://github.com/xushengfeng/eSearch/releases/latest)
-[![aur](https://img.shields.io/badge/aur-e--search-blue?logo=archlinux)](https://aur.archlinux.org/packages/e-search)
-[![aur1](https://img.shields.io/badge/aur-e--search--git-blue?logo=archlinux)](https://aur.archlinux.org/packages/e-search-git)
+[![release](https://img.shields.io/github/v/release/baichuanjiang2-cell/eSearch-paste?label=release)](https://github.com/baichuanjiang2-cell/eSearch-paste/releases/latest)
 
-[![QQ群](https://img.shields.io/badge/QQ群-1057170038-blue.svg?&color=12b7f5&logo=qq)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=1qoIvXZ5RAICkw_1DchHAaUdnck-wZwJ&authKey=tbBmRbmLJFIJi3dNbMROFpU%2B89V0J572DKUylwacd1%2FgCSg52Ql8Lu5RYGSZQkhc&noverify=0&group_code=1057170038)
+**eSearch 的私人定制分支。** 保留上游全部能力（截屏 / OCR / 搜索 / 翻译 / 贴图 / 屏幕翻译 / 以图搜图 / 滚动截屏 / 录屏），在它之上加了两个东西：
 
-## 简介
+1. **常驻任务栏的剪贴板历史面板** —— 点任务栏按钮就能翻你复制过的东西
+2. **自己做的液态玻璃** —— 不依赖系统材质，也不受系统「透明效果」开关影响
 
-eSearch 是[Information-portal](https://github.com/xushengfeng/Information-portal.git)的:electron:重写版(顺便加了亿些功能)
+> 上游 [xushengfeng/eSearch](https://github.com/xushengfeng/eSearch) 已明确拒绝「剪贴板管理」类功能（[Issue #317](https://github.com/xushengfeng/eSearch/issues/317) 与 [PR #515](https://github.com/xushengfeng/eSearch/pull/515) 均已关闭），所以这部分不打算回贡，只在本分支维护。
 
-主要是想在 Linux 上(win 和 mac 上也能用)实现[锤子大爆炸](https://www.smartisan.com/pr/videos/bigbang-introduction)或[小米传送门](https://www.miui.com/zt/miui9/index.html)这样的**屏幕搜索**功能，当然也是一款方便的**截屏软件**。
+---
 
-经过数次版本迭代，eSearch 的功能愈加丰富
+## 目录
 
-即拥有 **截屏+OCR+搜索+翻译+贴图+屏幕翻译+以图搜图+滚动截屏+录屏**
+- [下载安装](#下载安装)
+- [这个分支多了什么](#这个分支多了什么)
+- [剪贴板面板](#剪贴板面板)
+- [液态玻璃](#液态玻璃)
+- [设置项](#设置项)
+- [数据存在哪](#数据存在哪)
+- [已知限制](#已知限制)
+- [从源码运行 / 打包](#从源码运行--打包)
+- [项目文档](#项目文档)
+- [上游与许可](#上游与许可)
 
-![截屏界面](https://esearch-app.netlify.app/readme/1.webp)
-
-> 字体是[FiraCode](https://github.com/tonsky/FiraCode)，字体可在设置里设置
-
-![识别文字主页面](https://esearch-app.netlify.app/readme/8.webp)
+---
 
 ## 下载安装
 
-到网站[eSearch](https://esearch-app.netlify.app/#download)下载
+到 [Releases](https://github.com/baichuanjiang2-cell/eSearch-paste/releases/latest) 下载，两个文件二选一：
 
-或在右侧 [releases](https://github.com/xushengfeng/eSearch/releases) 打开标签，选择符合你系统的包并下载安装
+| 文件 | 大小 | 说明 |
+| --- | --- | --- |
+| `esearch_paste-15.6.1-win32-x64.exe` | 约 183 MB | **安装包**（推荐）。有向导、**不需要管理员权限**、自动建快捷方式 |
+| `esearch_paste-15.6.1-win32-x64.zip` | 约 242 MB | 绿色版，解压即用 |
 
-国内可以用[GitHub 镜像](https://ghfast.top/)加速下载
+> 文件名带 `esearch_paste-` 前缀是故意的 —— 官方版叫 `eSearch-<版本>-win32-x64.exe`，不加前缀会混。前缀**只改文件名**，程序内部的名字、安装位置、数据目录都没变。
 
-ArchLinux 可在 AUR 查找安装 `e-search`或`e-search-git`
+**安装时 Windows 可能弹蓝色的「Windows 已保护你的电脑」** —— 点「更多信息」→「仍要运行」。这是因为没买代码签名证书（一年几百到上千元），个人开发的小工具都会这样，不代表有病毒。
 
-winget `winget install esearch`
+**升级不会丢数据**：安装版和从源码跑的版本共用同一个数据目录 `%APPDATA%\eSearch`，配置、剪贴板历史、加密密钥全部继承。
 
-暂时没有 Homebrew 包，欢迎有志愿的维护者提供支持
+> ⚠️ 本分支与上游官方版**共用同一个程序标识和同一个数据目录**。别两个同时运行、也别混着装 —— 会抢同一份剪贴板历史。
 
-## 启动
+---
 
-在你的启动器打开 eSearch，他将出现在托盘。
+## 这个分支多了什么
 
-默认快捷键为 <kbd>Alt</kbd>+<kbd>C</kbd>(你也可以在设置里设置快捷键)
+| 能力 | 说明 |
+| --- | --- |
+| **剪贴板历史** | 自己维护一份可检索的复制记录，独立于系统当前剪贴板。文本 / 图片 / 文件路径都记 |
+| **剪贴板面板** | 展示与操作历史的**独立窗口**，它本身就是任务栏按钮。点 × 只是缩回任务栏，不退出程序 |
+| **编辑记录** | 文本与文件记录可就地改（图片不可）。改完若与另一条重复，两条会自动合并 |
+| **放大查看** | 图片记录可弹层看原图，不再只看缩略图 |
+| **固定 / 回收站** | 固定后不被自动清理淘汰；删除是进回收站，可恢复 |
+| **类型筛选** | 只看文本 / 图片 / 文件，可多选；与关键词搜索叠加生效 |
+| **尺寸档位** | 点任务栏唤出面板时用多大：默认 / 50% / 75% / 100% |
+| **液态玻璃** | 面板背景改成「自己截桌面 + 真折射」，见 [液态玻璃](#液态玻璃) |
+| **自定义数据目录** | `--userData` 参数 / `preload_config` 文件 / 便携模式三种入口。上游也有，但目录不存在时会启动崩溃，本分支修好了 |
 
-## 功能
+### 上游原有功能（完整保留）
 
-更多介绍见[文档](./docs/use/start.md)
+**截屏** · 截屏美化 · **滚动截屏** · **录屏 / 超级录屏** · **屏幕贴图** · **OCR 文字识别** · **以图搜图** · **翻译** · **屏幕翻译** · 离线 OCR 模型 · 全局快捷键 · 托盘
 
-### 截屏
+用法与上游一致，详细说明见上游的 [README](https://github.com/xushengfeng/eSearch#功能) 和[使用文档](https://github.com/xushengfeng/eSearch/tree/master/docs/use)。
 
-框选裁切、取色器、自由画笔、几何、马赛克、模糊
+> ⚠️ **唯一的用法差异**：任务栏按钮现在指向**剪贴板面板**，不再是主页面。主页面（OCR / 搜索 / 翻译那个窗口）改成**按需打开、关闭即销毁**，不再常驻任务栏 —— 详见 [ADR 0004](docs/adr/0004-clipboard-history-standalone-window.md)。
 
-框选除了通过方向键调节，还支持输入四则运算式调整
+---
 
-支持自定义框选后立马执行操作，如框选后自动 OCR
+## 剪贴板面板
 
-还支持滚动截屏，横向、竖向、任意方向都可以拼接
+### 三个入口
 
-### 截屏美化
+1. **点任务栏上的「eSearch 剪贴板历史」按钮**（最方便）
+2. 右键点托盘图标 → 菜单里的「剪贴板历史」
+3. 第一次启动时右下角弹出的系统通知，点它
 
-可为截屏设置背景（渐变、图片）、圆角、阴影
+面板默认约 **420 × 640**，可拖动、可缩放，**位置和尺寸会被记住**。换显示器导致位置跑到屏幕外时，会自动回到屏幕中间，不会"消失不见"。
 
-改变图像分辨率导出
+### 面板里能做什么
 
-抹除物体并修补图像
+顶部工具条，从左到右：**搜索框**（只对文字和文件路径有效，图片没有文字可搜）、**暂停记录**、**回收站**、**清空未固定**，以及三个**类型筛选**按钮（文本 / 图片 / 文件，可多选，都不选 = 全部）。
 
-### 录屏
+每条记录卡片右上角：
 
-录制屏幕、自定义大小、摄像头
+| 图标 | 出现条件 | 作用 |
+| --- | --- | --- |
+| 眼睛 | 只有图片 | 弹层看原图（`Esc` 关闭） |
+| 铅笔 | 只有文本 / 文件 | 就地编辑 |
+| 复制 | 都有 | 放回系统剪贴板，之后在别处 Ctrl+V 即可 |
+| 星星 | 都有 | 固定，不被自动清理淘汰 |
+| × | 都有 | 删除 → 进回收站（不是真删） |
 
-可提示光标位置和键盘击键
+> 图片没有"文字内容"可改，文本没有"原图"可看 —— 所以同一个位置只会出现一个图标。
 
-可设置虚拟背景
+**面板平时置顶**，但 OCR / 搜索 / 翻译的结果窗口出现时会自动让到后面去，不挡它们。
 
-### 超级录屏
+---
 
-自动缩放聚焦到鼠标位置，录屏更生动
+## 液态玻璃
 
-加速、删除，操作每个帧
+面板的玻璃是**自己做的**，不依赖系统材质，所以**不用管 Windows 的「透明效果」开没开**。
 
-### 屏幕贴图
+它由两部分叠出来：
 
-滚轮缩放、透明度、自动归位、鼠标穿透
+- **背景三层** —— `桌面图`（面板隐藏时截下的整块桌面）→ `色纱`（半透明底色）→ `折射`（边缘把背景"弯"一下，这是液态玻璃最有辨识度的那圈）
+- **前景光学层** —— 边缘 1px 高光、跟随鼠标的反光、极淡的颗粒、卡片上的玻璃描边。这一层不依赖背景，所以看起来永远像玻璃
 
-支持放大图像且不改变窗口大小，防止遮挡其他内容
+设置 → 剪贴板历史 → 液态玻璃，两个滑块：
 
-可通过 CSS 设置滤镜、变换（如镜像）
+| 滑块 | 管什么 | 默认 |
+| --- | --- | --- |
+| **玻璃强度** | 前景层高光 / 反光 / 颗粒的强度 | 0.6 |
+| **折射强度** | 背景在面板**边缘**被弯曲的程度 | 0.5 |
 
-### OCR（文字识别）
+> 两个都拉到 0 就等于关掉液态玻璃，面板退回纯色外观 —— 这时**程序也不再截屏**，没有任何额外开销。
 
-开箱即用的离线 OCR（[eSearch-OCR](https://github.com/xushengfeng/eSearch-OCR)，基于[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)），框选文字后按下回车键即可
+**为什么背景是"上一次隐藏时"的桌面？** 面板开着的时候截屏会把面板自己也拍进去（画面套画面）。所以只在面板**收起来的时候**截，打开前再补拍一张，通常不到一秒旧。换来的是干净、不闪烁的背景。
 
-大字符集，支持生僻字、特殊符号（需要在设置下载 v5 模型）
+> 系统开了「减少动态效果」会去掉入场动画；开了「减少透明效果」会隐藏反光和颗粒、把底色提到接近不透明 —— 都是可读性优先。
 
-离线 OCR 支持段落识别，也可以使用基于标点符号的分段算法
+---
 
-支持竖排文本，支持图片旋转识别
+## 设置项
 
-同时也支持百度、有道的在线 OCR
+设置 → 剪贴板历史：
 
-可后期编辑文字，在图片上选择文字，同步选区到编辑区，方便校对
-
-支持多语言：中文、英文、韩文、日文、泰卢固文、卡纳达文、泰米尔文、拉丁文、阿拉伯字母、斯拉夫字母、梵文字母（需要在设置额外下载）
-
-### 以图搜图
-
-谷歌、百度、Yandex 的以图搜图引擎
-
-可自定义多模态大模型接口，与 AI 交流图片
-
-### 翻译
-
-OCR 后可调用翻译，支持选词翻译
-
-支持免费的翻译引擎，如谷歌翻译等，也可以自己设置其他翻译引擎的 API，如 DeepL、百度等，可以使用 ChatGPT 等 AI 翻译，甚至可以自定义本地 AI 翻译
-
-可多个引擎同时翻译，择其善者
-
-可以保存翻译结果到本地文件或通过网络保存到 Anki 等记忆软件
-
-### 屏幕翻译
-
-生成一个贴图窗口，并把图片文字替换成翻译后的文本
-
-可设置定时翻译，适合视频、游戏等
-
-### 其他
-
-二维码识别
-
-## 展示
-
-https://user-images.githubusercontent.com/28475549/155870834-34ffa59f-9eac-4eea-9d82-135681d7dfa9.mp4
-
-> 截屏，自由调整框选大小（视频约 2.6MB）
-
-https://user-images.githubusercontent.com/28475549/155870857-99c7d6d0-a90b-4558-872a-85f2603225d6.mp4
-
-> 取色器（视频约 1MB）
-
-https://user-images.githubusercontent.com/28475549/155870867-fb0d31f0-2e06-431c-9ae9-ee3af5a5c08e.mp4
-
-> Ding 在屏幕上，透明度调节、归位以及鼠标操作（视频约 1.8MB）
-
-![3](https://esearch-app.netlify.app/readme/3.webp)
-
-> 绘图界面
-
-https://user-images.githubusercontent.com/28475549/155870881-9b2fc1b3-77de-4a99-8076-ed49b7b5c4c0.mp4
-
-> 主页面搜索和其他应用编辑（视频约 1.6MB）
-
-![3](https://esearch-app.netlify.app/readme/4.webp)
-
-> 主页面查找替换（支持正则）
-
-## 国际化
-
-大多数按钮使用图标，简少了不必要的翻译
-
-[+添加新语言](./lib/translate/readme.md)
-
-- [x] 简体中文
-- [x] 繁体中文
-- [x] 世界语（Esperanto）
-- [x] 西班牙语（Español）
-- [x] 阿拉伯语（عربي）
-- [x] 英语（English）
-- [x] 法语（Français）
-- [x] 俄语（Русский）
-
-## 源码运行&编译
-
-```shell
-git clone https://github.com/xushengfeng/eSearch.git
-cd eSearch
-npm install
-# 编译
-npm run dist
-# 将在build目录产生安装包和解压的目录
+| 设置项 | 默认 | 说明 |
+| --- | --- | --- |
+| **记录剪贴板** | 开 | 总开关 |
+| **轮询间隔** | 500 毫秒 | 多久查一次剪贴板。越小越及时但更耗电，**建议保持默认** |
+| **点击任务栏时的尺寸** | 默认 | 默认 / 50% / 75% / 100%。选百分比后，手动拖的大小不再被记住 |
+| **玻璃强度** | 0.6 | 0 = 关闭 |
+| **折射强度** | 0.5 | 0 = 只模糊不折射；与玻璃强度同时为 0 时不再截屏 |
+| **存储目录** | 留空 | 留空存在程序数据目录；改成别的文件夹会**自动迁移已有记录** |
+| **保留条数** | 200 | 固定住的和回收站里的不算在内；0 = 不限 |
+| **保留天数** | 7 | 0 = 不限 |
+| **清空剪贴板历史** | — | 清空所有**未固定**的记录，有二次确认 |
+
+改完约 **1 秒后自动生效**，不用重启软件。
+
+---
+
+## 数据存在哪
+
+```
+%APPDATA%\eSearch\剪贴板历史\
+├─ index.bin                记录的索引（文字内容、时间、是否固定等）
+├─ images\                  图片记录，每条一个 .bin 文件
+└─ ..\clipboardHistory.key  加密密钥（在上一级目录）
 ```
 
-```shell
-# 运行
-npm run start
-# 调试
-npm run dev
+**加密**：记录不是明文存的，用的是 **AES-256-GCM**；密钥本身由系统级凭据保护（safeStorage）加密后才落盘。别人直接把 `index.bin` 拷走是打不开的。
+
+如实说明两点：
+
+1. 这只保护"**落盘不明文**"。电脑中了木马、或者有人能直接操作你的电脑，这个加密挡不住。
+2. 系统不支持加密时（极少数情况）会**降级成明文保存**，同时在设置页顶部显示一条**黄色提示条**。**看到提示条就说明你的记录是明文的。**
+
+> 不要手动删 `clipboardHistory.key` —— 已有记录会全部无法解密。
+
+---
+
+## 已知限制
+
+- **面板背景是"上一次隐藏时"的桌面快照**，不是实时的。这是刻意的取舍，理由见上面「液态玻璃」。
+- **自动检查更新默认关闭**（改成手动）。因为本分支版本号与上游同源，上游一发新版就会弹「有新版本」并把人引向官方安装包 —— 装了就覆盖掉定制版。想升级需要手动同步上游代码后重新打包。
+- **剪贴板历史方向不走上游**。上游已明确拒绝（Issue #317 / PR #515），本分支自行维护。
+- **上游新增的修复不会自动进来**，需要手动合并。
+- 只在 **Windows** 上测过。
+
+---
+
+## 从源码运行 / 打包
+
+```bash
+pnpm install
+
+# 构建后启动（推荐）
+pnpm run start
+
+# 打包成安装包 + 绿色版
+pnpm run dist
 ```
 
-[具体技术说明](docs/develop/readme.md)
+打包产物在 `build/`：
 
-## 测试
+| 文件 | 大小 |
+| --- | --- |
+| `esearch_paste-<版本>-win32-x64.exe` | 约 183 MB（安装包） |
+| `esearch_paste-<版本>-win32-x64.zip` | 约 242 MB（绿色版） |
 
-在 ArchLinux,KDE plasma,Xorg 下测试通过
+> `pnpm run dev` 在这个项目里跑不通（原生 `.node` 库的问题），用 `pnpm run start`。
+>
+> 打包前需要 5 个资源（OCR 模型、ffmpeg 等，约 155 MB），首次会自动下载。
 
-Windows10 和 Windows11 测试通过
+---
 
-macOS Catalina 测试通过
+## 项目文档
 
-## Q&A
+| 文件 | 内容 |
+| --- | --- |
+| [`docs/新手使用指南.md`](docs/新手使用指南.md) | **从这里开始**。从零到跑起来、面板怎么用、怎么打包安装，全程照着做 |
+| [`CONTEXT.md`](CONTEXT.md) | 术语表。「剪贴板历史」「剪贴板搜索」「剪贴板面板」「液态玻璃」这些词具体指什么 |
+| [`docs/adr/`](docs/adr/) | 架构决策记录（0001~0007）：为什么分支要和上游分开、面板为什么独立成窗口、液态玻璃为什么自己截桌面 |
+| [`docs/液态玻璃开发方案.md`](docs/液态玻璃开发方案.md) | 液态玻璃的设计过程与市面做法调研 |
+| [`docs/改动说明规范.md`](docs/改动说明规范.md) | 本分支的协作约定：每次改动后怎么向使用者汇报 |
 
-### 不再支持 Win7、Win8
+---
 
-Electron 官方不再支持 Win7、Win8，所以 eSearch 也不再支持。
+## 上游与许可
 
-但可以自己编译，见[文档](./docs/use/qa.md#兼容性)，部分功能可能无法使用。
+- 上游：[xushengfeng/eSearch](https://github.com/xushengfeng/eSearch)
+- 本分支：[baichuanjiang2-cell/eSearch-paste](https://github.com/baichuanjiang2-cell/eSearch-paste)
+- 许可：[GPL-3.0](LICENSE) © xushengfeng
 
-### 下载依赖库
-
-大部分 Windows 在安装后会提示下载依赖库，这是因为截屏库需要，点击下载，将自动打开微软官网下载，安装完成后可能需要重启。
-
-### Gnome 点击后无响应
-
-Gnome 用户需要安装[appindicator](https://extensions.gnome.org/extension/615/appindicator-support/)插件来使用托盘。
-
-### mac 提示文件已损坏
-
-mac 对互联网下载的 dmg 做了部分限制。
-
-可以在互联网上搜索“mac”、“文件损坏”等关键词。不同版本的系统适用的方法也不同。
-
-### 为什么选择 electron
-
-- 跨平台需要，本来我是想在 Linux 上也能体验 Windows 下优秀的截屏工具，Linux 独占也不好，所以选择跨平台。
-- qt 依赖 c++，学习成本太高。flutter 桌面版还不太成熟。我更擅长 js 开发。
-- 截屏依赖本地系统，这是目前浏览器做不到的。
-- 最后只有 js 类跨平台方案，我选择了较为成熟，使用最多的 electron。
-
-在其他平台没有类似 Arch Linux 单独打包作为库的情况下，软件占用的存储空间是比较多的，但几十行 js 脚本的增加不多，带来的功能却显著地感知到，所以我会尽力发挥其潜力，做到更精美的 UI、更丰富的功能。
-
-### 为什么安装包这么大
-
-除了 Electron 的占用，还有 onnx 运行库（用于运行 AI 模型）、离线文字识别模型、录屏人像识别模型、高级编辑的物体移除模型、FFmpeg（用于录屏格式转换，Linux 有库所以不附带）等。
-
-### 更新版本后出现了以前没有的错误
-
-一般是因为不同版本的配置不兼容，可以尝试在 设置-高级-高级设置 里 恢复默认设置。
-
-若未能解决问题，请提交 issue
-
-## 贡献
-
-请查看[贡献指南](CONTRIBUTING.md)
-
-## 开发原因
-
-我在用 Windows 时一直用这个好用的截屏软件：[Snipaste - 截图 + 贴图](https://zh.snipaste.com/)，但我切换到 Linux，Snipaste 不支持（2019 年，现在已支持），所以我选择了[Flameshot](https://flameshot.org/)，很可惜它没有直观的取色器。
-
-促使我开发 eSearch 的另一个契机是我很享受在手机上使用[锤子大爆炸](https://www.smartisan.com/pr/videos/bigbang-introduction)或[小米传送门](https://www.miui.com/zt/miui9/index.html)这样的即时信息搜索工具，但我没有找到电脑上类似的代替品。
-
-所以我干脆自己开发一个“截屏+OCR+搜索+贴图”的软件。最开始用 python+pyqt 开发出[Information-portal](https://github.com/xushengfeng/Information-portal.git)，但因为我不熟悉 pyqt，所以我转战:electron:，开发出本软件。😄
-
-## 赞赏与支持
-
-精神支持：点亮右上角 star 星标 🌟
-
-物质支持：[个人主页赞赏](https://github.com/xushengfeng)
-
-行动：反馈 bug、提供新功能点子、[参与开发](CONTRIBUTING.md)
-
-## License
-
-[GPL-3.0](LICENSE) © xushengfeng
+除剪贴板与液态玻璃相关的改动外，全部功能与代码来自上游。本分支向上游提交过的**与定制功能无关**的通用修复见 [PR #518](https://github.com/xushengfeng/eSearch/pull/518)。
