@@ -7,8 +7,7 @@
 
 **A personal fork of [eSearch](https://github.com/xushengfeng/eSearch).** All upstream features are kept (screenshot, OCR, search, translation, pin-to-desktop, screen translation, reverse image search, scrolling capture, screen recording). On top of that, this fork adds two things:
 
-1. **A clipboard-history panel that lives in the taskbar** — click the taskbar button to browse everything you've copied
-2. **A hand-rolled "liquid glass" look** — it does not rely on OS window materials, and is unaffected by the Windows "Transparency effects" setting
+**A clipboard-history panel that lives in the taskbar** — click the taskbar button to browse everything you've copied. Search it, edit entries in place, open images full-size, and pin entries (pinned ones get a filled gold star).
 
 > Upstream has explicitly declined clipboard-manager features ([issue #317](https://github.com/xushengfeng/eSearch/issues/317) and [PR #515](https://github.com/xushengfeng/eSearch/pull/515) are both closed), so this part will not be contributed back and is maintained here only.
 
@@ -43,33 +42,10 @@ Windows may show the blue "Windows protected your PC" warning; click **More info
 | **Clipboard panel** | A **standalone window** that shows and manages the history — it *is* the taskbar button. Clicking × just hides it back to the taskbar; the app keeps running |
 | **Edit entries** | Text and file entries can be edited in place (images can't). If an edit makes two entries identical, they are merged |
 | **Full-size image view** | Image entries can be opened full-size in a modal, instead of only the thumbnail |
-| **Pin / Recycle bin** | Pinned entries are never auto-pruned; deleting moves to the recycle bin and can be undone |
+| **Pin / Recycle bin** | Pinned entries are never auto-pruned, float to the top, and get a filled gold star plus a gold bar on the card. Deleting moves to the recycle bin and can be undone |
 | **Type filter** | Show only text / images / files, multi-selectable; stacks with keyword search |
 | **Size presets** | How large the panel opens from the taskbar: default / 50% / 75% / 100% |
-| **Liquid glass** | The panel background is a self-captured desktop screenshot plus real refraction |
 | **Custom data directory** | Supports `--userData`, a `preload_config` file, and portable mode |
-
----
-
-## Liquid glass
-
-The panel's glass is built by the app itself — it does **not** depend on OS window materials, so you never have to turn on Windows' "Transparency effects".
-
-It is made of two stacked parts:
-
-- **Three background layers** — a `desktop capture` (taken while the panel is hidden) → a translucent tint → refraction (the rim bends the background, which is the most recognisable part of the effect)
-- **A foreground optical layer** — a 1px rim highlight, a pointer-following sheen, very light grain, and glass strokes on the cards. This layer needs no background pixels, so the panel always looks like glass
-
-Two sliders under Settings → Clipboard history → Liquid glass:
-
-| Slider | Controls | Default |
-| --- | --- | --- |
-| **Glass intensity** | Strength of the foreground highlights / sheen / grain | 0.6 |
-| **Refraction intensity** | How much the background is bent at the panel **rim** | 0.5 |
-
-> Setting both to 0 turns liquid glass off and falls back to the plain colour panel — the app also stops capturing the screen, so there is no overhead at all.
-
-**Why is the background a snapshot from the last time the panel was hidden?** Capturing while the panel is visible would photograph the panel itself (a picture inside a picture). So the app captures only while the panel is **put away**, and grabs one more shot right before showing it — usually less than a second old.
 
 ---
 
