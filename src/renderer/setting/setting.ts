@@ -1169,16 +1169,6 @@ const s: Partial<settingItem<SettingPath>> = {
                 "点击任务栏时的尺寸",
             ),
     },
-    "剪贴板历史.玻璃强度": {
-        name: "玻璃强度",
-        desc: "面板边缘高光、跟随鼠标的反光与颗粒的强度，0 表示关闭",
-        el: () => xNumber("", { min: 0, max: 1, step: 0.05 }),
-    },
-    "剪贴板历史.折射强度": {
-        name: "折射强度",
-        desc: "背景透过面板时被弯曲的程度；0 表示只模糊不折射。与「玻璃强度」同时为 0 时不采集桌面，不产生额外开销",
-        el: () => xNumber("", { min: 0, max: 1, step: 0.05 }),
-    },
     自动搜索: {
         name: "自动搜索",
         desc: "识屏或直接打开主页面，若文字为一行，则自动搜索",
@@ -2417,13 +2407,6 @@ const main: {
                 settings: ["剪贴板历史.窗口尺寸"],
             },
             {
-                title: "液态玻璃",
-                settings: [
-                    "剪贴板历史.玻璃强度",
-                    "剪贴板历史.折射强度",
-                ],
-            },
-            {
                 title: "存储",
                 settings: [
                     "剪贴板历史.存储目录",
@@ -2721,17 +2704,10 @@ const bindF: { [k in SettingPath]?: (v: GetValue<setting, k>) => void } = {
         });
     },
     "全局.深色模式": (v) => renderSend("theme", [v]),
-    // 面板的液态玻璃也要跟着变：模糊决定折射的底图有多糊，不透明度决定色纱多厚。
-    "全局.模糊": (v) => {
-        setProperty("--blur", `blur(${v}px)`);
-        applyClipHistorySetting();
-    },
+    "全局.模糊": (v) => setProperty("--blur", `blur(${v}px)`),
     // --alpha 在 root.css 里是 color-mix 的百分比，initStyle 也是按百分比设的，
     // 这里必须同样带 %，否则写进去的 "0.4" 不合法，要重开页面才生效。
-    "全局.不透明度": (v) => {
-        setProperty("--alpha", `${v * 100}%`);
-        applyClipHistorySetting();
-    },
+    "全局.不透明度": (v) => setProperty("--alpha", `${v * 100}%`),
     "字体.主要字体": (v) => setProperty("--main-font", v),
     "字体.等宽字体": (v) => setProperty("--monospace", v || monoFont.join(",")),
     "剪贴板历史.开启": () => applyClipHistorySetting(),
@@ -2739,8 +2715,6 @@ const bindF: { [k in SettingPath]?: (v: GetValue<setting, k>) => void } = {
     "剪贴板历史.轮询间隔": () => applyClipHistorySetting(),
     "剪贴板历史.保留条数": () => applyClipHistorySetting(),
     "剪贴板历史.保留天数": () => applyClipHistorySetting(),
-    "剪贴板历史.玻璃强度": () => applyClipHistorySetting(),
-    "剪贴板历史.折射强度": () => applyClipHistorySetting(),
 };
 
 const bindF2: { f: (has: boolean) => void; keys: SettingPath[] }[] = [

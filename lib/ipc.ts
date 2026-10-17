@@ -9,8 +9,6 @@ import type {
 } from "electron";
 import type {
     BrowserAction,
-    ClipBackdrop,
-    ClipGeom,
     ClipItem,
     DingResize,
     DingStart,
@@ -218,12 +216,6 @@ type Message = {
     clipHistoryApplySetting: () => void;
     /** 主进程 → 页面：历史发生变化 */
     clipHistoryChange: () => void;
-    /** 主进程 → 页面：面板背景（桌面截图），供模糊与折射使用 */
-    clipHistoryBackdrop: (b: ClipBackdrop) => void;
-    /** 主进程 → 页面：只更新背景的几何（窗口移动/缩放），不重传图 */
-    clipHistoryBackdropGeom: (g: ClipGeom) => void;
-    /** 主进程 → 页面：液态玻璃的强度设置变了，重算外观（不重列列表） */
-    clipHistoryGlass: () => void;
 };
 
 const name = "ipc";

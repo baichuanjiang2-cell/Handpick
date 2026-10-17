@@ -2,328 +2,24 @@ import { button, ele, image, input, pack, textarea, txt, view } from "dkh-ui";
 import { renderOn, renderSend, renderSendSync } from "../../../lib/ipc";
 import store from "../../../lib/store/renderStore";
 import { t } from "../../../lib/translate/translate";
-import type { ClipGeom, ClipItem } from "../../ShareTypes";
+import type { ClipItem } from "../../ShareTypes";
 import type { IconType } from "../../iconTypes";
 import { Class, cssVar, getImgUrl, initStyle, setTitle } from "../root/root";
 
 initStyle(store);
 setTitle(t("剪贴板历史"));
 
-// 面板的窗口背景交给系统材质（Windows 亚克力），页面底色必须半透明才透得出来
+// 面板底色由 body.glass 直接给主题色（窗口不透明，没有任何东西可透）
 document.body.classList.add("glass");
-
-// ── 液态玻璃 ────────────────────────────────────────────────────
-
-/*
- * 分三层，从下往上：
- *
- *   .lg-desk   主进程截下来的桌面图，按屏幕坐标摆正，只做模糊
- *   .lg-tint   一层色纱，半透明程度跟随「样式 → 毛玻璃效果 → 不透明度」
- *   .lg-lens   对上面两层做折射（backdrop-filter 引 SVG 位移滤镜）
- *
- * 为什么背景要自己截：CSS 的 backdrop-filter 只能采样页面内部已经绘制的内容，而
- * 桌面是 DWM 在 Chromium 之外合成的，页面拿不到它。所以想让「背景透过玻璃被弯曲」，
- * 只能把桌面像素搬进页面——搬进来之后，backdrop-filter 才第一次真的有东西可弯。
- *
- * 折射方向取「向内取样」：向外取样会取到页面外的空白，窗口边缘会出现一圈发虚的带。
- * 向内取样既躲开了这个问题，也正是液态玻璃边缘那种「内容向边缘压缩」的观感。
- */
-
-/** 位移贴图的边长上限。贴图是平滑的，用不到全分辨率 */
-const LENS_MAP_MAX = 256;
-
-const lgDesk = view().class("lg-desk").addInto();
-view().class("lg-tint").addInto();
-const lgLens = view().class("lg-lens").addInto();
-view().class("lg-layer", "lg-rim").addInto();
-view().class("lg-layer", "lg-grain").addInto();
-view().class("lg-layer", "lg-spec").addInto();
-
-/** 位移滤镜的容器。必须先把 filter 元素放进 DOM，再让 .lg-lens 引用它——
- *  引用一个不存在的 filter，浏览器会直接不渲染那个元素。 */
-const lgSvgHost = ele("div")
-    .style({
-        position: "absolute",
-        width: "0",
-        height: "0",
-        overflow: "hidden",
-    })
-    .addInto();
-lgSvgHost.el.innerHTML =
-    '<svg xmlns="http://www.w3.org/2000/svg"><filter id="lg-lens" ' +
-    'x="0" y="0" width="100%" height="100%" ' +
-    'color-interpolation-filters="sRGB"></filter></svg>';
-lgLens.style({ backdropFilter: "url(#lg-lens)" });
-
-const lgFilter = lgSvgHost.el.querySelector("filter") as SVGFilterElement;
-
-/** 上一次生成位移贴图用的参数，避免窗口移动时反复重建 */
-let lensKey = "";
-
-/**
- * 折射起效的带宽（CSS 像素）。只在边缘这一圈弯，越往里越直。
- *
- * 按面板短边取，不写死：面板小的时候固定带宽会把整块都弯了，
- * 看起来不像玻璃边缘而像哈哈镜。上下限是为了极端尺寸下也别太离谱。
- */
-function lensBand(w: number, h: number) {
-    return Math.max(10, Math.min(30, Math.min(w, h) * 0.07));
-}
-
-/**
- * 生成圆角矩形的位移贴图。
- *
- * 三通道编码（社区通行约定）：
- *   R = X 方向位移，128 为中性
- *   G = Y 方向位移，128 为中性
- *   B = 高光遮罩（预留，当前填中性值）
- *
- * 必须用 Canvas 生成、以位图形式交给 feImage：用 SVG data URI 的话，SVG 会被当成
- * 图片渲染，里面的 CSS 属性不参与求值（mix-blend-mode、filter 都会被忽略），
- * 中心永远无法中和，整个元素会变成一团扭曲。
- */
-function buildLensMap(w: number, h: number, radius: number, band: number) {
-    const scale = Math.min(1, LENS_MAP_MAX / Math.max(w, h));
-    const mw = Math.max(8, Math.round(w * scale));
-    const mh = Math.max(8, Math.round(h * scale));
-    const c = document.createElement("canvas");
-    c.width = mw;
-    c.height = mh;
-    const ctx = c.getContext("2d")!;
-    const img = ctx.createImageData(mw, mh);
-
-    const r = Math.min(radius * scale, Math.min(mw, mh) / 2);
-    // 带宽换到贴图坐标系；至少要几个像素，否则整条渐变会被采样成一两级台阶
-    const rim = Math.max(3, band * scale);
-    const cx = mw / 2;
-    const cy = mh / 2;
-
-    const sdf = (x: number, y: number) => {
-        const qx = Math.abs(x - cx) - (mw / 2 - r);
-        const qy = Math.abs(y - cy) - (mh / 2 - r);
-        return (
-            Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) +
-            Math.min(Math.max(qx, qy), 0) -
-            r
-        );
-    };
-
-    for (let y = 0; y < mh; y++) {
-        for (let x = 0; x < mw; x++) {
-            const i = (y * mw + x) * 4;
-            // sdf 为负表示在矩形内部，-sdf 就是「离边缘多远」
-            const t = Math.min(Math.max(-sdf(x, y) / rim, 0), 1);
-            // smoothstep 反向：边缘处 1，往中心衰减到 0，避免出现一圈硬边
-            const f = 1 - t * t * (3 - 2 * t);
-            if (f <= 0) {
-                img.data[i] = 128;
-                img.data[i + 1] = 128;
-                img.data[i + 2] = 128;
-                img.data[i + 3] = 255;
-                continue;
-            }
-            // 中心差分求法线。SDF 的梯度朝外，取负号让 R/G 在边缘处偏向
-            // 「指向内侧」那一侧——配合正的 scale，采样方向就是朝内。
-            // 朝内取样既躲开「取到页面外空白」的发虚边，也正是液态玻璃边缘
-            // 那种「背景被压向边缘」的观感。
-            const e = 1;
-            const gx = sdf(x + e, y) - sdf(x - e, y);
-            const gy = sdf(x, y + e) - sdf(x, y - e);
-            const len = Math.hypot(gx, gy) || 1;
-            img.data[i] = 128 - (gx / len) * f * 127;
-            img.data[i + 1] = 128 - (gy / len) * f * 127;
-            img.data[i + 2] = 128;
-            img.data[i + 3] = 255;
-        }
-    }
-    ctx.putImageData(img, 0, 0);
-    return c.toDataURL("image/png");
-}
-
-/**
- * 面板上实际用的模糊半径。
- *
- * 不直接用「样式 → 毛玻璃效果」那个值：那个是给整个页面做背景模糊用的，25px 会把
- * 面板糊成一片，糊到没有细节可弯，折射就白做了。这里只取它的一小部分。
- */
-function lensBlur() {
-    return Math.min(12, Math.max(0, store.get("全局.模糊") * 0.35));
-}
-
-/**
- * 重建折射滤镜。只跟窗口尺寸、模糊与折射强度有关——位移贴图的边缘永远落在窗口
- * 边界上，与窗口在屏幕上的位置无关，所以拖动窗口不必重建。
- *
- * 模糊和折射都在这一条滤镜里做，顺序是先糊再弯，正是毛玻璃的成像顺序。
- * 模糊之所以不放在 .lg-desk 上（用 CSS 的 filter: blur()），是因为 CSS filter 在
- * 元素边界外按透明处理，面板贴着屏幕边时会出现一圈发虚的边；backdrop-filter 的
- * 采样在边界外是钳制的，不会。
- */
-function buildLensFilter() {
-    const refract = store.get("剪贴板历史.折射强度");
-    const blur = lensBlur();
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const key = `${w}x${h}#${refract.toFixed(2)}#${blur.toFixed(2)}`;
-    if (key === lensKey) return;
-    lensKey = key;
-
-    const head =
-        blur > 0
-            ? `<feGaussianBlur in="SourceGraphic" stdDeviation="${blur}" result="frost"/>`
-            : '<feOffset in="SourceGraphic" result="frost"/>';
-
-    if (refract <= 0) {
-        // 折射强度为 0 = 只模糊不折射，滤镜到此为止，输出就是 frost
-        lgFilter.innerHTML = head;
-        return;
-    }
-
-    const radius =
-        Number.parseFloat(
-            getComputedStyle(document.documentElement).getPropertyValue(
-                "--border-radius",
-            ),
-        ) || 8;
-    const band = lensBand(w, h);
-    // 边缘处的最大位移量，取带宽的 0.7 倍：位移/带宽就是这个位置的平均放大率，
-    // 0.7 约等于 1.7 倍压缩，是「看得出在弯、但还认得出背景」的区间。
-    const amp = band * 0.7 * refract;
-    // feDisplacementMap 的 scale 是通道满量程（±127/255≈0.498）对应的位移，
-    // 所以要乘 1/0.498 才能让边缘处正好达到 amp。
-    const base = (amp / 0.498) * 1;
-    // 三通道各差一点点位移量，做出色散。差值随 amp 走，面板小的时候不至于糊成彩虹。
-    const chroma = amp * 0.1;
-    const map = buildLensMap(w, h, radius, band);
-    const at = (s: number) =>
-        `in="frost" in2="map" scale="${s}" xChannelSelector="R" yChannelSelector="G"`;
-    // 三个通道用不同位移量各弯一次，再把各通道加回去。
-    // 相加而不是 screen 混合：每张图只有一个通道非零，相加才正好还原亮度。
-    // 注意矩阵的对角线必须落在第 k 行第 k 列——写成固定的 "1 0 0 0 0"
-    // 会让三个通道全都取 R，合成出来就是一张灰度图。
-    const keep = (k: number) => {
-        const rows = [
-            [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0],
-            [0, 0, 0, 1, 0],
-        ];
-        rows[k][k] = 1;
-        return rows.map((r) => r.join(" ")).join(" ");
-    };
-    lgFilter.innerHTML = [
-        head,
-        `<feImage href="${map}" result="map" preserveAspectRatio="none"/>`,
-        `<feDisplacementMap ${at(base - chroma)} result="dr"/>`,
-        `<feDisplacementMap ${at(base)} result="dg"/>`,
-        `<feDisplacementMap ${at(base + chroma)} result="db"/>`,
-        `<feColorMatrix in="dr" type="matrix" values="${keep(0)}" result="cr"/>`,
-        `<feColorMatrix in="dg" type="matrix" values="${keep(1)}" result="cg"/>`,
-        `<feColorMatrix in="db" type="matrix" values="${keep(2)}" result="cb"/>`,
-        `<feComposite in="cr" in2="cg" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="crg"/>`,
-        `<feComposite in="crg" in2="cb" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"/>`,
-    ].join("");
-}
-
-/** 截图所在显示器（屏幕坐标，DIP）与面板内容区（屏幕坐标，DIP） */
-let deskDisp: ClipGeom["disp"] | null = null;
-let deskContent: ClipGeom["content"] | null = null;
-/** 当前桌面图的 objectURL，换图时要释放上一张 */
-let deskUrl = "";
-
-/** 把桌面图按屏幕坐标摆正。窗口移动时只需重设 left/top，不必重画 */
-function placeDesk() {
-    if (!deskDisp || !deskContent) return;
-    lgDesk.style({
-        left: `${deskDisp.x - deskContent.x}px`,
-        top: `${deskDisp.y - deskContent.y}px`,
-        width: `${deskDisp.width}px`,
-        height: `${deskDisp.height}px`,
-    });
-}
-
-/** 两个滑块都为 0 时，主进程不采集桌面，面板退回纯色玻璃 */
-function glassOff() {
-    return (
-        store.get("剪贴板历史.玻璃强度") <= 0 &&
-        store.get("剪贴板历史.折射强度") <= 0
-    );
-}
-
-function applyGlass() {
-    const s = document.documentElement.style;
-    s.setProperty("--lg-i", String(store.get("剪贴板历史.玻璃强度")));
-    s.setProperty("--lg-refract", String(store.get("剪贴板历史.折射强度")));
-    // 色纱的厚度跟着「样式 → 毛玻璃效果 → 不透明度」走。initStyle 只在页面加载时
-    // 设过一次，用户在设置页拖滑块之后得在这里补上，否则面板要重开才变。
-    s.setProperty("--alpha", `${store.get("全局.不透明度") * 100}%`);
-    // 只负责「关」：lg-bg 由桌面图到位时打开（见 clipHistoryBackdrop），
-    // 这样图还没来时不会先闪一层色纱。
-    if (glassOff()) document.body.classList.remove("lg-bg");
-    buildLensFilter();
-}
-applyGlass();
-
-renderOn("clipHistoryBackdrop", ([b]) => {
-    if (glassOff()) return;
-    deskDisp = b.disp;
-    deskContent = b.content;
-    const url = URL.createObjectURL(
-        new Blob([b.data as unknown as BlobPart], { type: "image/jpeg" }),
-    );
-    if (deskUrl) URL.revokeObjectURL(deskUrl);
-    deskUrl = url;
-    lgDesk.style({ backgroundImage: `url("${url}")` });
-    document.body.classList.add("lg-bg");
-    placeDesk();
-});
-
-// 窗口移动/缩放时主进程只推几何，不重新截图：图是屏幕对齐的，改一下 left/top 就行。
-renderOn("clipHistoryBackdropGeom", ([g]) => {
-    if (glassOff()) return;
-    deskDisp = g.disp;
-    deskContent = g.content;
-    placeDesk();
-});
-
-// 设置页拖「玻璃强度 / 折射强度」时走这条：只重算外观，不重列历史
-renderOn("clipHistoryGlass", () => {
-    applyGlass();
-});
-
-let placePending = false;
-window.addEventListener("resize", () => {
-    if (placePending) return;
-    placePending = true;
-    requestAnimationFrame(() => {
-        placePending = false;
-        placeDesk();
-        buildLensFilter();
-    });
-});
-
-// 反光跟着指针走。用 rAF 合并同一帧里的多次移动，否则高频 pointermove 会让
-// 每次移动都写一次自定义属性，白白触发样式重算。
-let specPending = false;
-window.addEventListener("pointermove", (e) => {
-    if (specPending) return;
-    specPending = true;
-    requestAnimationFrame(() => {
-        specPending = false;
-        const s = document.documentElement.style;
-        s.setProperty("--mx", `${e.clientX}px`);
-        s.setProperty("--my", `${e.clientY}px`);
-    });
-});
 
 const padding = cssVar("o-padding");
 
-function iconEl(src: IconType) {
-    return image(getImgUrl(`${src}.svg`), "icon").class("icon");
+function iconEl(src: IconType, cls?: string) {
+    return image(getImgUrl(`${src}.svg`), "icon").class("icon").class(cls ?? "");
 }
 
-function iconB(src: IconType, title: string, onClick: () => void) {
-    return button(iconEl(src))
+function iconB(src: IconType, title: string, onClick: () => void, cls?: string) {
+    return button(iconEl(src, cls))
         .attr({ title })
         .on("click", () => onClick());
 }
@@ -435,14 +131,14 @@ listEl.addInto();
  * 类留着的话每敲一个字符搜索框都会重放一次动画。
  */
 listEl.el.addEventListener("animationend", () =>
-    listEl.el.classList.remove("lg-appear"),
+    listEl.el.classList.remove("list-appear"),
 );
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) return;
-    listEl.el.classList.remove("lg-appear");
+    listEl.el.classList.remove("list-appear");
     // 读一次布局强制重排，否则同一个类加回去不会重新播动画
     void listEl.el.offsetWidth;
-    listEl.el.classList.add("lg-appear");
+    listEl.el.classList.add("list-appear");
 });
 
 // ── 缩略图懒加载 ────────────────────────────────────────────────
@@ -536,12 +232,17 @@ function saveEdit(item: ClipItem) {
 }
 
 function itemEl(item: ClipItem) {
-    const card = view().class(Class.deco).style({
-        display: "flex",
-        flexDirection: "column",
-        gap: "6px",
-        padding,
-    });
+    // 回收站里不显示固定状态：那里只有「恢复 / 永久删除」，固定状态没有对应操作
+    const pinned = item.pinned && !trash;
+    const card = view()
+        .class(Class.deco)
+        .class(pinned ? "pinned" : "")
+        .style({
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px",
+            padding,
+        });
 
     const typeName =
         item.type === "text"
@@ -590,8 +291,11 @@ function itemEl(item: ClipItem) {
             iconB("copy", t("复制"), () =>
                 renderSend("clipHistoryCopy", [item.id]),
             ),
-            iconB("star", item.pinned ? t("取消固定") : t("固定"), () =>
-                renderSend("clipHistoryPin", [item.id, !item.pinned]),
+            iconB(
+                pinned ? "star-fill" : "star",
+                pinned ? t("取消固定") : t("固定"),
+                () => renderSend("clipHistoryPin", [item.id, !item.pinned]),
+                pinned ? "star-fill" : undefined,
             ),
             iconB("close", t("删除"), () =>
                 renderSend("clipHistoryRemove", [item.id]),
@@ -694,7 +398,5 @@ function render() {
 
 render();
 renderOn("clipHistoryChange", () => {
-    // 设置页改了玻璃强度会走这个通道，顺手重读一次
-    applyGlass();
     render();
 });

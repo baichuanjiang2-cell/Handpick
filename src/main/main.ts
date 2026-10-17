@@ -54,7 +54,6 @@ import time_format from "../../lib/time_format";
 import { getLans, lan, t } from "../../lib/translate/translate";
 import { typedEntries } from "../../lib/utils";
 import type {
-    ClipBackdrop,
     EditToolsType,
     GithubUrlType,
     MainWinType,
@@ -1636,25 +1635,6 @@ function applyClipHistorySetting() {
     });
     if (store.get("剪贴板历史.开启")) clipHistory.start();
     else clipHistory.stop();
-    syncClipHistoryGlass();
-}
-
-/**
- * 玻璃强度变了：让面板重算外观，并按需要起停桌面采集。
- *
- * 不复用 clipHistoryChange——那条会让面板整个重列一遍历史，拖滑块时太浪费。
- * 两个滑块都归零时要停掉采集，否则关掉玻璃后还在每秒截一次屏。
- */
-function syncClipHistoryGlass() {
-    const win = clipHistoryWindow;
-    if (!win || win.isDestroyed()) return;
-    mainSend(win.webContents, "clipHistoryGlass", []);
-    if (wantBackdrop()) {
-        startBackdropRefresh(win);
-        void pushBackdrop(win);
-    } else {
-        stopBackdropRefresh();
-    }
 }
 
 mainOn("clipHistoryApplySetting", () => {
@@ -2152,174 +2132,6 @@ function applyClipHistorySize(win: BrowserWindow) {
         win.setSize(w, h);
 }
 
-/** 面板隐藏时的背景刷新间隔 */
-const BACKDROP_REFRESH_MS = 1000;
-/** 面板隐藏超过这个时长就停掉背景刷新，避免托盘常驻时空转 */
-const BACKDROP_IDLE_MS = 120_000;
-/** 缓存超过这个时长就算旧了，下次显示面板之前要抢拍一张 */
-const BACKDROP_STALE_MS = 8000;
-
-/** 两个滑块都为 0 时不需要采集桌面，纯色玻璃即可 */
-function wantBackdrop() {
-    return (
-        store.get("剪贴板历史.玻璃强度") > 0 ||
-        store.get("剪贴板历史.折射强度") > 0
-    );
-}
-
-/**
- * 采集需要知道「截哪块屏」和「面板内容区在哪」。
- *
- * 这两个都只在窗口处于正常状态时读得到：最小化时 getBounds/getContentBounds 返回的
- * 是 -32000 那一带的哨兵坐标，直接拿来算偏移会把桌面图甩到屏幕外。而采集恰恰几乎
- * 都发生在面板最小化的时候——所以这里做一层缓存，正常时刷新、其余时候沿用。
- */
-let backdropCtx: {
-    display: Electron.Display;
-    content: { x: number; y: number; width: number; height: number };
-} | null = null;
-
-function refreshBackdropCtx(win: BrowserWindow) {
-    if (!win.isMinimized()) {
-        const b = win.getBounds();
-        backdropCtx = {
-            display: screen.getDisplayNearestPoint({
-                x: Math.round(b.x + b.width / 2),
-                y: Math.round(b.y + b.height / 2),
-            }),
-            content: win.getContentBounds(),
-        };
-    }
-    return backdropCtx;
-}
-
-/**
- * 截一张面板所在显示器的桌面图，供面板做背景模糊与折射。
- *
- * 为什么要自己截：CSS 的 backdrop-filter 只能采样页面内部已经绘制的内容，而桌面是
- * DWM 在 Chromium 之外合成的，页面拿不到它。想要「背景透过玻璃被弯曲」，只能把桌面
- * 像素搬进页面再对它做滤镜。
- *
- * 请求的是物理分辨率——按 DIP 请求在高 DPI 屏上会拿到一张被缩小的图，玻璃里的桌面
- * 会发虚。整屏只传一次，JPEG 约 50KB，比裁剪更省事。
- */
-async function capturePanelBackdrop(
-    win: BrowserWindow,
-): Promise<ClipBackdrop | null> {
-    const ctx = refreshBackdropCtx(win);
-    if (!ctx) return null;
-    const { display, content } = ctx;
-    const srcs = await desktopCapturer.getSources({
-        types: ["screen"],
-        thumbnailSize: {
-            width: Math.round(display.bounds.width * display.scaleFactor),
-            height: Math.round(display.bounds.height * display.scaleFactor),
-        },
-    });
-    const src =
-        srcs.find((s) => String(s.display_id) === String(display.id)) ??
-        srcs[0];
-    if (!src || src.thumbnail.isEmpty()) return null;
-    const img = src.thumbnail;
-    return {
-        data: img.toJPEG(88),
-        disp: display.bounds,
-        px: img.getSize(),
-        // 用内容区而不是外框：页面里的 position:fixed 原点就是内容区左上角
-        content,
-    };
-}
-
-/**
- * 采集一次并推给面板。
- *
- * 面板可见时直接不采：截图必然把面板自己也拍进去，中间那块是「镜中镜」，
- * 会把面板画成自己的背景。面板隐藏时窗口不在合成结果里，拍到的才是干净桌面。
- */
-async function pushBackdrop(win: BrowserWindow) {
-    if (win.isDestroyed() || !wantBackdrop()) return;
-    if (win.isVisible()) return;
-    try {
-        const r = await capturePanelBackdrop(win);
-        if (!r || win.isDestroyed()) return;
-        lastBackdropAt = Date.now();
-        mainSend(win.webContents, "clipHistoryBackdrop", [r]);
-    } catch {
-        // 截图失败不该影响面板本身，静默降级为纯色玻璃
-    }
-}
-
-/**
- * 只推几何，不截图。窗口拖动时用——图是屏幕对齐的，改一下偏移就摆正了，
- * 重新截图反而会让背景在拖动过程中一顿一顿地跳。
- */
-function pushBackdropGeom(win: BrowserWindow) {
-    if (win.isDestroyed() || !wantBackdrop()) return;
-    // 最小化时窗口坐标是哨兵值，拿它算偏移会把桌面图甩到屏幕外；
-    // 最小化期间本来也没人看，直接不推。
-    if (win.isMinimized()) return;
-    const ctx = refreshBackdropCtx(win);
-    if (!ctx) return;
-    mainSend(win.webContents, "clipHistoryBackdropGeom", [
-        {
-            disp: ctx.display.bounds,
-            content: ctx.content,
-        },
-    ]);
-}
-
-/** 拖动窗口时 move 事件很密，合并到一次宏任务里推，避免每像素一次 IPC */
-let geomPushTimer: ReturnType<typeof setTimeout> | undefined;
-function scheduleBackdropGeom(win: BrowserWindow) {
-    if (geomPushTimer !== undefined) return;
-    geomPushTimer = setTimeout(() => {
-        geomPushTimer = undefined;
-        pushBackdropGeom(win);
-    }, 50);
-}
-
-let backdropTimer: ReturnType<typeof setInterval> | undefined;
-/** 面板最后一次可见的时刻，用来决定隐藏期间还要不要继续刷背景 */
-let panelLastVisible = Date.now();
-/** 最近一次成功采集桌面的时刻，用来判断缓存是不是太旧了 */
-let lastBackdropAt = 0;
-
-function stopBackdropRefresh() {
-    if (backdropTimer !== undefined) {
-        clearInterval(backdropTimer);
-        backdropTimer = undefined;
-    }
-    if (geomPushTimer !== undefined) {
-        clearTimeout(geomPushTimer);
-        geomPushTimer = undefined;
-    }
-}
-
-/**
- * 背景刷新。
- *
- * 只在面板隐藏时采。面板可见时截图必然把面板自己也拍进去，中间那块是「镜中镜」，
- * 会把面板画成自己的背景——而面板隐藏时窗口不在合成结果里，正好能拍到干净的整张。
- * 所以面板里看到的是「上一次隐藏时」的桌面快照，配合显示前的抢拍，通常不到一秒旧。
- *
- * 隐藏久了就停下，不让托盘常驻的程序一直空转；下次显示之前会补拍一张。
- */
-function startBackdropRefresh(win: BrowserWindow) {
-    stopBackdropRefresh();
-    backdropTimer = setInterval(() => {
-        if (win.isDestroyed()) {
-            stopBackdropRefresh();
-            return;
-        }
-        if (win.isVisible()) {
-            panelLastVisible = Date.now();
-            return;
-        }
-        if (Date.now() - panelLastVisible > BACKDROP_IDLE_MS) return;
-        void pushBackdrop(win);
-    }, BACKDROP_REFRESH_MS);
-}
-
 /**
  * 创建剪贴板历史面板的独立窗口。
  * 已存在时直接返回，不重复创建——面板全局只有一个。
@@ -2348,16 +2160,6 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
         show: !o?.startMinimized,
         alwaysOnTop: true,
         ...baseWinConfig(),
-        ...(process.platform === "win32"
-            ? {
-                  // 液态毛玻璃：让 Windows 用 DWM 在窗口后面画一层亚克力材质
-                  // （仅 Win11 22H2 以上，其他系统上 Electron 会忽略这个选项）。
-                  // 页面自己也得半透明才透得出来；材质没生效时，那层半透明叠在
-                  // 不透明的窗口底色上，结果仍等于改动前的实心外观。
-                  backgroundColor: "#00000000",
-                  backgroundMaterial: "acrylic" as const,
-              }
-            : {}),
     });
     clipHistoryWindow = win;
     syncClipHistoryTop();
@@ -2373,8 +2175,6 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
         win.once("ready-to-show", () => {
             if (win.isDestroyed()) return;
             win.show();
-            // 趁窗口还是正常状态把采集锚点定下来：一 minimize 就只剩哨兵坐标了
-            refreshBackdropCtx(win);
             win.minimize();
         });
     }
@@ -2405,17 +2205,7 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
 
     win.on("closed", () => {
         clipHistoryWindow = null;
-        stopBackdropRefresh();
     });
-
-    // 拖动/缩放时背景图不用重截，只要把新的几何推过去让它跟着窗口走
-    win.on("move", () => scheduleBackdropGeom(win));
-    win.on("resize", () => scheduleBackdropGeom(win));
-
-    panelLastVisible = Date.now();
-    startBackdropRefresh(win);
-    // 面板此时还不可见，正好能拍到干净的整张桌面
-    win.webContents.once("did-finish-load", () => void pushBackdrop(win));
 
     return win;
 }
@@ -2424,16 +2214,9 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
 function showClipHistoryWindow() {
     const win = createClipHistoryWindow();
     if (win.isDestroyed()) return;
-    panelLastVisible = Date.now();
-    // 缓存太旧就先抢拍一张：capturePage 是异步的，但抓帧发生在调用那一刻，
-    // 这时窗口还没 show，能拿到干净桌面。等显示之后再拍就只会拍到面板自己。
-    if (Date.now() - lastBackdropAt > BACKDROP_STALE_MS) void pushBackdrop(win);
     if (win.isMinimized()) win.restore();
     win.show();
     applyClipHistorySize(win);
-    // 显示之后补推一次几何：还原/显示不一定触发 move 或 resize，
-    // 而窗口在屏幕上的位置可能已经变了（比如换了显示器）。
-    scheduleBackdropGeom(win);
     win.focus();
     syncClipHistoryTop();
 }
@@ -3367,10 +3150,6 @@ const defaultSetting: setting = {
         窗口位置: [-1, -1],
         /** 唤出面板时的尺寸档位；「默认」= 沿用窗口大小记住的尺寸 */
         窗口尺寸: "默认",
-        /** 液态玻璃前景光学层的强度；0 = 关闭 */
-        玻璃强度: 0.6,
-        /** 背景折射强度；0 = 只模糊不折射 */
-        折射强度: 0.5,
     },
     时间格式: "MM/DD hh:mm:ss",
     硬件加速: true,
