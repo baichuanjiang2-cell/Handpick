@@ -100,3 +100,17 @@ lib/ipc.ts 添加了类型约束，需要在`Message`变量上添加名称、参
 - 没做成的任务照写，且「我没验证到的部分」不许省。
 
 完整规范（格式、小项顺序、纯内部改动的判定清单）见[改动说明规范](./docs/改动说明规范.md)。
+
+## Agent skills
+
+### Issue tracker
+
+任务与规格发布为本地 markdown 文件（`.scratch/<功能>/` 下一票一文件）。See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+五个默认分组标签（needs-triage / needs-info / ready-for-agent / ready-for-human / wontfix）。See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+单上下文：根目录 `CONTEXT.md` + `docs/adr/`。See `docs/agents/domain.md`.

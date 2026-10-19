@@ -7,7 +7,9 @@
 
 **A personal fork of [eSearch](https://github.com/xushengfeng/eSearch).** All upstream features are kept (screenshot, OCR, search, translation, pin-to-desktop, screen translation, reverse image search, scrolling capture, screen recording). On top of that, this fork adds two things:
 
-**A clipboard-history panel that lives in the taskbar** — click the taskbar button to browse everything you've copied. Search it, edit entries in place, open images full-size, and pin entries (pinned ones get a filled gold star).
+**Clipboard history** — a searchable record of everything you've copied (text, images, file paths). Search it, edit entries in place, open images full-size, and pin entries (pinned ones get a filled gold star).
+
+**The Control Center** — clicking the taskbar button opens the app's shell window: a sidebar plus a top bar, with the clipboard history as the default page. Screenshot, pin-to-desktop, recording, OCR and every other feature live in the sidebar's tool groups, one click away. Opening the app = clicking the taskbar button, and everything is there.
 
 > Upstream has explicitly declined clipboard-manager features ([issue #317](https://github.com/xushengfeng/eSearch/issues/317) and [PR #515](https://github.com/xushengfeng/eSearch/pull/515) are both closed), so this part will not be contributed back and is maintained here only.
 
@@ -38,14 +40,38 @@ Windows may show the blue "Windows protected your PC" warning; click **More info
 
 | Feature | Description |
 | --- | --- |
-| **Clipboard history** | A searchable record of what you copied, independent of the current system clipboard. Text, images and file paths |
-| **Clipboard panel** | A **standalone window** that shows and manages the history — it *is* the taskbar button. Clicking × just hides it back to the taskbar; the app keeps running |
+| **Control Center** | The app's **shell window** (top bar + sidebar + main area) that the taskbar button opens — every feature is reachable from here. It *is* the taskbar button; clicking × just hides it back to the taskbar |
+| **Clipboard history** | A searchable record of what you copied, independent of the current system clipboard. Text, images and file paths; the Control Center's default page |
+| **Unified entries** | The tray's right-click menu shrank from 20 items to 4 (open Control Center / quick screenshot / pause recording / exit); a left click still does a quick screenshot. All remaining features live in the Control Center's **tool groups**, backed by the same action table as the tray, so nothing gets lost |
+| **Paper-ink design** | One consistent look app-wide: warm paper background, gold / vermilion accents, hairline rules and small-radius cards; headings in Source Han Serif, body in Source Han Sans, numerals in Fraunces (a ~2.7 MB common-character subset ships with the app so the typeface never falls back). Dark mode is ink-black with amber glow |
 | **Edit entries** | Text and file entries can be edited in place (images can't). If an edit makes two entries identical, they are merged |
 | **Full-size image view** | Image entries can be opened full-size in a modal, instead of only the thumbnail |
 | **Pin / Recycle bin** | Pinned entries are never auto-pruned, float to the top, and get a filled gold star plus a gold bar on the card. Deleting moves to the recycle bin and can be undone |
 | **Type filter** | Show only text / images / files, multi-selectable; stacks with keyword search |
-| **Size presets** | How large the panel opens from the taskbar: default / 50% / 75% / 100% |
+| **Size presets** | How large the Control Center opens from the taskbar: default / 50% / 75% / 100% |
 | **Custom data directory** | Supports `--userData`, a `preload_config` file, and portable mode |
+
+---
+
+## The Control Center
+
+Three ways to open it: click the taskbar button, right-click the tray icon → **Open Control Center**, or click the first-run notification. The window defaults to ~**420 × 640**, is freely movable/resizable, and **remembers its position and size** (if a monitor change puts it off-screen, it recenters automatically).
+
+Layout — top bar, sidebar, main area:
+
+- **Top bar**: quick actions (quick screenshot / auto recognition / back to clipboard) plus the paper-ink window controls (gold = minimize, hollow dot = maximize, vermilion = close)
+- **Sidebar**: brand + version; page sections (Clipboard / Translate / AI Vision / Settings) that swap content in the main area; the collapsible **tool groups** (Search & recognition / Recording & pinning / Window / Help & system) holding every action by name; and the **main-page mode** picker (auto / search / translate)
+- **Main area**: clipboard history by default; translate, AI Vision and settings switch in here
+
+The main page (editor) and Help remain separate windows; screenshot, pin-to-desktop, screen translation and recorder overlays are full-screen layers launched from the tool groups.
+
+### Look: paper & ink
+
+One consistent look app-wide: warm paper background, gold / vermilion accents, hairline rules and small-radius cards. Headings use Source Han Serif, body text uses Source Han Sans, numerals use Fraunces — a ~**2.7 MB** common-character subset ships with the app, so the typefaces never fall back even offline; rare characters fall back to system fonts.
+
+Dark mode is ink-black with an amber glow. Change it in **Settings → Colors**: four preset palettes (the first one is paper & ink) plus per-color customization, and dark mode can be light / dark / follow system (light by default).
+
+The **tray** now does only two things: left click = quick screenshot (setting: "auto screenshot on tray click", on by default); right click = the 4-item menu.
 
 ---
 
@@ -71,7 +97,7 @@ Two honest caveats:
 
 ## Known limitations
 
-- The panel background is a **snapshot from the last time the panel was hidden**, not live. This is a deliberate trade-off.
+- **The paper-ink redesign is not in a release yet.** The source branch has the new UI, but the latest release (15.6.1) still shows the old one. Run from source to try it now; a build with the new UI will come with the next release.
 - **Automatic update checking is off by default** (manual only). This fork shares upstream's version lineage, so an upstream release would prompt you to download the official installer — which would overwrite this fork. Upgrading means merging upstream manually and rebuilding.
 - The clipboard-history direction **will not go upstream** (see the note at the top).
 - Upstream fixes are **not merged automatically**.
@@ -99,4 +125,4 @@ Artifacts land in `build/`. Note that `pnpm run dev` does not work in this proje
 
 [GPL-3.0](LICENSE) © xushengfeng
 
-Everything except the clipboard-history and liquid-glass work comes from upstream. General upstream fixes submitted from this fork: [PR #518](https://github.com/xushengfeng/eSearch/pull/518).
+Everything except the clipboard-history and Control Center work comes from upstream. General upstream fixes submitted from this fork: [PR #518](https://github.com/xushengfeng/eSearch/pull/518).
