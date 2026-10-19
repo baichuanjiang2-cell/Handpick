@@ -23,8 +23,8 @@ Grab either file from [Releases](https://github.com/baichuanjiang2-cell/eSearch-
 
 | File | Size | Notes |
 | --- | --- | --- |
-| `esearch_paste-15.6.1-win32-x64.exe` | ~183 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
-| `esearch_paste-15.6.1-win32-x64.zip` | ~242 MB | Portable — unzip and run |
+| `esearch_paste-15.7.0-win32-x64.exe` | ~186 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
+| `esearch_paste-15.7.0-win32-x64.zip` | ~246 MB | Portable — unzip and run |
 
 The `esearch_paste-` prefix exists only to avoid confusion with the official build (`eSearch-<version>-win32-x64.exe`). It changes **the file name only** — the internal app name, install location and data directory are unchanged.
 
@@ -97,7 +97,6 @@ Two honest caveats:
 
 ## Known limitations
 
-- **The paper-ink redesign is not in a release yet.** The source branch has the new UI, but the latest release (15.6.1) still shows the old one. Run from source to try it now; a build with the new UI will come with the next release.
 - **Automatic update checking is off by default** (manual only). This fork shares upstream's version lineage, so an upstream release would prompt you to download the official installer — which would overwrite this fork. Upgrading means merging upstream manually and rebuilding.
 - The clipboard-history direction **will not go upstream** (see the note at the top).
 - Upstream fixes are **not merged automatically**.
