@@ -96,13 +96,13 @@ select {
     white-space: nowrap;
 }
 .pro_running {
-    background-color: #9999ff;
+    background-color: color-mix(in srgb, var(--accent-pine) 55%, transparent);
 }
 .pro_ok {
-    background-color: #99ff99;
+    background-color: var(--accent-pine);
 }
 .pro_error {
-    background-color: #ff9999;
+    background-color: var(--accent-cinnabar);
 }
 
 .hide_log {

@@ -392,13 +392,13 @@ body input {
 /* long */
 #long_rect {
     position: fixed;
-    outline: 1px dashed #000;
+    outline: 1px dashed var(--font-color);
 }
 
 #long_finish {
     width: 16px;
     height: 16px;
-    background-color: #f00;
+    background-color: var(--accent-cinnabar);
     border-radius: 8px;
     position: absolute;
     right: 0;
@@ -433,8 +433,8 @@ body input {
     border-width: calc(var(--bar-size) / 15);
     border-style: solid;
     box-sizing: border-box;
-    border-color: #333;
-    background-color: #fff;
+    border-color: var(--border-color);
+    background-color: var(--bg);
 }
 #draw_color_switch {
     position: relative;

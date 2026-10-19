@@ -17,6 +17,8 @@ import {
     view,
 } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
+import { iconButton as iconBEl, iconEl } from "../lib/ui";
+import { titleBar } from "../lib/ui";
 import {
     Class,
     cssColor,
@@ -2623,14 +2625,6 @@ async function saveMp4(op: { codec: "avc" | "vp9" | "av1" }) {
     }
 }
 
-function iconEl(src: IconType) {
-    return image(getImgUrl(`${src}.svg`), "icon").class("icon");
-}
-
-function iconBEl(src: IconType, title: string) {
-    return button().add(iconEl(src)).attr({ title });
-}
-
 function monoTxt(text?: string) {
     return txt(text).class(Class.mono);
 }
@@ -3774,6 +3768,16 @@ pack(document.body).style({
     height: "100vh",
     overflow: "hidden",
 });
+
+// 纸墨自绘标题栏（三窗控）
+titleBar(t("超级录屏"))
+    .style({
+        borderBottom: "1px solid var(--border-color)",
+        flexShrink: "0",
+        position: "relative",
+        zIndex: "100",
+    })
+    .addInto();
 
 (async () => {
     if (testMode) return;

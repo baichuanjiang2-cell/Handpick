@@ -31,6 +31,7 @@ import type { GetValue, SettingPath } from "../../../lib/store/renderStore";
 import store from "../../../lib/store/renderStore";
 import { getLanName, getLans, lan, t } from "../../../lib/translate/translate";
 import type { GithubUrlType, setting, 功能 } from "../../ShareTypes";
+import { titleBar } from "../lib/ui";
 import {
     Class,
     cssColor,
@@ -2900,6 +2901,22 @@ type Theme2 = {
 const themes: Theme2[] = [
     {
         light: {
+            barbg: "#F1E9DA",
+            bg: "#FAF5EA",
+            emphasis: "#E9DCC2",
+            fontColor: "#241F1A",
+            fontInEmphasis: "#241F1A",
+        },
+        dark: {
+            barbg: "#201C17",
+            bg: "#17140F",
+            emphasis: "#352E24",
+            fontColor: "#F2EDE3",
+            fontInEmphasis: "#F2EDE3",
+        },
+    },
+    {
+        light: {
             barbg: "#FFFFFF",
             bg: "#FFFFFF",
             emphasis: "#DFDFDF",
@@ -5321,7 +5338,12 @@ for (const p of main) {
         }
 }
 
-pack(document.body).style({ display: "flex" });
+pack(document.body).style({
+    display: "flex",
+    flexDirection: "column",
+    height: "100vh",
+    overflow: "hidden",
+});
 
 setTitle(t("设置"));
 
@@ -5371,7 +5393,8 @@ const sideBar = view("y")
         padding: cssVar("o-padding"),
         flexShrink: 0,
         width: "200px",
-        height: "100vh",
+        flex: "1",
+        minHeight: "0",
         overflowY: "auto",
     })
     .class(
@@ -5431,7 +5454,8 @@ const searchI = input()
     });
 const mainViewP = view().addInto().style({
     overflowY: "scroll",
-    height: "100vh",
+    flex: "1",
+    minHeight: "0",
     flexGrow: "1",
 });
 mainViewP.add(searchBar);
@@ -5455,6 +5479,17 @@ const mainView = view()
     );
 
 mainViewP.add(about());
+
+// 纸墨自绘标题栏（三窗控）；侧边栏 + 主内容区收进一行
+const head = titleBar(t("设置")).style({
+    borderBottom: "1px solid var(--border-color)",
+    flexShrink: 0,
+});
+const wrap = view("x")
+    .style({ flex: "1", minHeight: "0", display: "flex" })
+    .add([sideBar, mainViewP]);
+head.addInto();
+wrap.addInto();
 
 const contextMenuP = view()
     .style({ margin: 0, padding: 0, borderRadius: cssVar("o-padding") })

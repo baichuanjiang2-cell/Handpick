@@ -1,20 +1,29 @@
+@import url("./fonts.css");
+
 :root {
     --alpha: 60%;
 
-    /* base */
-    --bar-bg0: #fff;
-    --bg: #fff;
-    --emphasis-color: #dfdfdf;
-    --font-color: #000;
-    --font-color-emphasis: #000;
+    /* base（纸墨编辑部 亮色：米白纸底 + 墨字；store 里的主题可覆盖） */
+    --bar-bg0: #f1e9da;
+    --bg: #faf5ea;
+    --emphasis-color: #e9dcc2;
+    --font-color: #241f1a;
+    --font-color-emphasis: #241f1a;
     --icon-color: none;
 
-    --d-bar-bg0: #000;
-    --d-bg: #000;
-    --d-emphasis-color: #333;
-    --d-font-color: #fff;
-    --d-font-color-emphasis: #fff;
+    --d-bar-bg0: #201c17;
+    --d-bg: #17140f;
+    --d-emphasis-color: #352e24;
+    --d-font-color: #f2ede3;
+    --d-font-color-emphasis: #f2ede3;
     --d-icon-color: invert(1);
+
+    /* 纸墨设计语言的固定强调色（语义色，不随主题编辑变化）：
+       金 = 重点标记（固定星标/色带），朱砂 = 批注，墨绿 = 辅助，琥珀 = 暗色下的微光 */
+    --accent-gold: #d99a2b;
+    --accent-cinnabar: #c2402b;
+    --accent-pine: #3f6b52;
+    --accent-amber: #e0a33c;
 
     /* bar */
     --bar-bg: color-mix(in srgb, var(--bar-bg0) var(--alpha), transparent);
@@ -51,23 +60,27 @@
 
     --transition: 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     --button-active: scale(0.95) translateZ(0);
-    --border-radius: 8px;
+    --border-radius: 6px;
     --blur: blur(10px);
     /* 固定标记的金色。star-fill.svg 里写死了同一个色值（<img> 吃不到 CSS 变量） */
-    --star-color: #d99a2b;
+    --star-color: var(--accent-gold);
     --shadow: color-mix(in srgb, var(--emphasis-color) 20%, transparent) 0 0 4px,
         color-mix(in srgb, var(--font-color) 30%, transparent) 0 0 2px;
     --font-color-l: color-mix(in srgb, var(--font-color) 50%, var(--bg));
     --font-color-ll: color-mix(in srgb, var(--font-color) 30%, var(--bg));
+    /* 细墨线：卡片/控件的描边，混一点字色，比旧的强调色描边更像纸上的线 */
     --border-color: color-mix(
         in oklab,
-        var(--emphasis-color) 90%,
+        var(--emphasis-color) 78%,
         var(--font-color)
     );
     --color-size: 150px;
     --color-i-size: 10px;
     --monospace: ;
-    --main-font: sans-serif;
+    /* 纸墨字体：正文思源黑体、标题思源宋体、数字 Fraunces（子集见 fonts.css，缺字自动回落） */
+    --main-font: "Source Han Sans SC", sans-serif;
+    --title-font: "Source Han Serif SC", "Source Han Sans SC", serif;
+    --num-font: "Fraunces", serif;
     --bar-size: 60px;
     --bar-icon: 0.7;
     --base-size1: 32px;
@@ -174,10 +187,10 @@ body.glass .pinned > * .icon.star-fill {
 }
 ::-webkit-scrollbar-thumb {
     border-radius: 10px;
-    background: #ddd;
+    background: var(--m-color-bb);
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #ccc;
+    background: var(--m-color-b);
 }
 ::-webkit-scrollbar-track {
     background: transparent;
@@ -285,16 +298,16 @@ body dialog {
 }
 body dialog::backdrop {
     backdrop-filter: var(--blur);
-    background-color: #0004;
+    background-color: color-mix(in srgb, var(--font-color) 25%, transparent);
 }
 
 kbd {
     display: inline-block;
     padding: 2px 4px;
     border-radius: var(--border-radius);
-    background: linear-gradient(315deg, #e6e6e6, #ffffff);
+    background: linear-gradient(315deg, var(--m-color-bbb), var(--bg));
     font-family: var(--monospace);
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
 }
 
 input[type="number"] {
@@ -363,15 +376,7 @@ input[type="checkbox"]:checked {
         --font-color-emphasis: var(--d-font-color-emphasis) !important;
         --check-icon: var(--d-check-icon) !important;
     }
-    ::-webkit-scrollbar-thumb {
-        border-radius: 10px;
-        background: #444;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
     kbd {
-        box-shadow: 0 5px #fff4;
-        background: linear-gradient(315deg, #191919, #000);
+        box-shadow: 0 5px color-mix(in srgb, var(--bg) 25%, transparent);
     }
 }

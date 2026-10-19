@@ -48,7 +48,7 @@ import url from "node:url";
 import main, { matchFitLan } from "xtranslator";
 import { githubMirrorList } from "../../lib/github_mirror";
 import { mainOn, mainOnReflect, mainSend } from "../../lib/ipc";
-import type { RecordRect } from "../../lib/ipc";
+import type { AppAction, RecordRect } from "../../lib/ipc";
 import Store from "../../lib/store/store";
 import time_format from "../../lib/time_format";
 import { getLans, lan, t } from "../../lib/translate/translate";
@@ -594,6 +594,104 @@ const 快捷键函数: Record<keyof setting["快捷键"], () => void> = {
 
 let contextMenu: Electron.Menu | null = null;
 let tray: Tray | null = null;
+
+/**
+ * 全局动作的唯一派发表。托盘菜单与控制中心功能清单都只调这一个入口，
+ * 两边不会各写一份而漏掉某个功能。
+ */
+const appActions: Record<AppAction, () => void> = {
+    autoOpen,
+    quickShot: () => showPhoto(),
+    clipSearch: () =>
+        setTimeout(() => {
+            showPhoto();
+        }, store.get("主搜索功能.截屏搜索延迟")),
+    selectionSearch: () => openSelection(),
+    clipboardSearch: () => openClipBoard(),
+    showCenter: () => showClipHistoryWindow(),
+    pauseToggle: () => {
+        clipHistory?.setPaused(!store.get("剪贴板历史.暂停"));
+        refreshTrayMenu();
+    },
+    ocr: () =>
+        setTimeout(() => {
+            sendCaptureEvent(undefined, "ocr");
+        }, store.get("主搜索功能.截屏搜索延迟")),
+    imageSearch: () =>
+        setTimeout(() => {
+            sendCaptureEvent(undefined, "search");
+        }, store.get("主搜索功能.截屏搜索延迟")),
+    superRecord: () => createSuperRecorderWindow(),
+    browserOpenToggle: () => {
+        store.set("浏览器中打开", !store.get("浏览器中打开"));
+        refreshTrayMenu();
+    },
+    dingFromClipboard: () => dingFromClipBoard(),
+    mainModeAuto: () => {
+        store.set("主页面.模式", "auto");
+        refreshTrayMenu();
+    },
+    mainModeSearch: () => {
+        store.set("主页面.模式", "search");
+        refreshTrayMenu();
+    },
+    mainModeTranslate: () => {
+        store.set("主页面.模式", "translate");
+        refreshTrayMenu();
+    },
+    reuseMainToggle: () => {
+        store.set("主页面.复用", !store.get("主页面.复用"));
+        refreshTrayMenu();
+    },
+    mainPage: () => createMainWindow({ type: "text", content: "" }),
+    // 设置是控制中心的栏目（壳内切换），不再是独立窗口
+    settings: () => {
+        showClipHistoryWindow();
+        const win = createClipHistoryWindow();
+        if (!win.isDestroyed())
+            mainSend(win.webContents, "shellGo", ["setting"]);
+    },
+    help: () => createHelpWindow(),
+    devExit: () => {
+        store.set("dev", false);
+        app.relaunch();
+        app.exit(0);
+    },
+    checkUpdate: () => checkUpdate(true),
+    feedback: () => {
+        shell.openExternal(
+            feedbackUrl({
+                title: `[${clipHistoryWindow?.getTitle()?.replace("eSearch - ", "") ?? "……界面"}] 存在……问题`,
+            }),
+        );
+    },
+    restart: () => {
+        app.relaunch();
+        app.exit(0);
+    },
+    exit: () => app.quit(),
+};
+
+function refreshTrayMenu() {
+    if (contextMenu) tray?.setContextMenu(contextMenu);
+}
+
+mainOn("appAction", ([action]) => {
+    if (
+        action !== "getState" &&
+        typeof action === "string" &&
+        Object.hasOwn(appActions, action)
+    ) {
+        appActions[action as AppAction]();
+    }
+    return {
+        paused: store.get("剪贴板历史.暂停"),
+        browserOpen: store.get("浏览器中打开"),
+        reuseMain: store.get("主页面.复用"),
+        mainMode: store.get("主页面.模式"),
+        dev: store.get("dev"),
+    };
+});
 const trayIcons: Record<string, NativeImage> = {
     macTem: nativeImage.createFromPath(
         join(runPath, "assets/logo/bw/macIconTemplate.png"),
@@ -662,206 +760,25 @@ app.whenReady().then(() => {
         // 托盘
         tray = new Tray(join(runPath, "assets/logo/32x32.png"));
 
-        function update() {
-            tray?.setContextMenu(contextMenu);
-        }
-
+        // 托盘右键只留 4 项高频入口，全量功能在控制中心的功能清单里
         contextMenu = Menu.buildFromTemplate([
             {
-                label: `${t("自动识别")}`,
-                click: () => {
-                    autoOpen();
-                },
+                label: t("打开控制中心"),
+                click: () => appActions.showCenter(),
             },
             {
-                label: t("截屏搜索"),
-                click: () => {
-                    setTimeout(() => {
-                        showPhoto();
-                    }, store.get("主搜索功能.截屏搜索延迟"));
-                },
-            },
-            {
-                label: t("选中搜索"),
-                click: () => {
-                    openSelection();
-                },
-            },
-            {
-                label: t("剪贴板搜索"),
-                click: () => {
-                    openClipBoard();
-                },
-            },
-            {
-                label: t("剪贴板历史"),
-                click: () => {
-                    showClipHistoryWindow();
-                },
+                label: t("快速截屏"),
+                click: () => appActions.quickShot(),
             },
             {
                 label: t("暂停记录"),
                 type: "checkbox",
                 checked: store.get("剪贴板历史.暂停"),
-                click: (i) => {
-                    clipHistory?.setPaused(i.checked);
-                    update();
-                },
-            },
-            {
-                type: "separator",
-            },
-            {
-                label: t("文字识别（OCR）"),
-                click: () => {
-                    setTimeout(() => {
-                        sendCaptureEvent(undefined, "ocr");
-                    }, store.get("主搜索功能.截屏搜索延迟"));
-                },
-            },
-            {
-                label: t("以图搜图"),
-                click: () => {
-                    setTimeout(() => {
-                        sendCaptureEvent(undefined, "search");
-                    }, store.get("主搜索功能.截屏搜索延迟"));
-                },
-            },
-            {
-                label: t("超级录屏"),
-                click: () => {
-                    createSuperRecorderWindow();
-                },
-            },
-            {
-                type: "separator",
-            },
-            {
-                label: t("浏览器打开"),
-                type: "checkbox",
-                checked: store.get("浏览器中打开"),
-                click: (i) => {
-                    store.set("浏览器中打开", i.checked);
-                    update();
-                },
-            },
-            {
-                type: "separator",
-            },
-            {
-                label: t("从剪贴板贴图"),
-                click: () => {
-                    dingFromClipBoard();
-                },
-            },
-            {
-                type: "separator",
-            },
-            {
-                label: t("主页面模式"),
-                type: "submenu",
-                submenu: [
-                    {
-                        label: t("自动"),
-                        type: "radio",
-                        checked: store.get("主页面.模式") === "auto",
-                        click: () => {
-                            store.set("主页面.模式", "auto");
-                            update();
-                        },
-                    },
-                    {
-                        label: t("搜索"),
-                        type: "radio",
-                        checked: store.get("主页面.模式") === "search",
-                        click: () => {
-                            store.set("主页面.模式", "search");
-                            update();
-                        },
-                    },
-                    {
-                        label: t("翻译"),
-                        type: "radio",
-                        checked: store.get("主页面.模式") === "translate",
-                        click: () => {
-                            store.set("主页面.模式", "translate");
-                            update();
-                        },
-                    },
-                ],
-            },
-            {
-                label: t("复用主页面"),
-                toolTip: t("可加快OCR加载"),
-                type: "checkbox",
-                checked: store.get("主页面.复用"),
-                click: (i) => {
-                    store.set("主页面.复用", i.checked);
-                    update();
-                },
-            },
-            { type: "separator" },
-            {
-                label: t("主页面"),
-                click: () => {
-                    createMainWindow({ type: "text", content: "" });
-                },
-            },
-            {
-                label: t("设置"),
-                click: () => {
-                    createSettingWindow();
-                },
-            },
-            {
-                label: t("教程帮助"),
-                click: () => {
-                    createHelpWindow();
-                },
-            },
-            {
-                type: "separator",
-            },
-            ...(dev
-                ? [
-                      {
-                          label: t("退出开发者模式"),
-                          click: () => {
-                              store.set("dev", false);
-                              app.relaunch();
-                              app.exit(0);
-                          },
-                      },
-                  ]
-                : []),
-            {
-                label: t("检查更新"),
-                click: async () => {
-                    checkUpdate(true);
-                },
-            },
-            {
-                label: t("反馈"),
-                click: (_i, win) => {
-                    shell.openExternal(
-                        feedbackUrl({
-                            title: `[${win?.getTitle()?.replace("eSearch - ", "") ?? "……界面"}] 存在……问题`,
-                        }),
-                    );
-                },
-            },
-            {
-                label: t("重启"),
-                click: () => {
-                    app.relaunch();
-                    app.exit(0);
-                },
+                click: () => appActions.pauseToggle(),
             },
             {
                 label: t("退出"),
-                click: () => {
-                    app.quit();
-                },
+                click: () => appActions.exit(),
             },
         ]);
         tray?.setToolTip(app.getName());
@@ -1449,7 +1366,11 @@ function createRecorderWindow(
     y = Math.min(y, sy1 - h);
     x = Math.round(x);
     y = Math.round(y);
-    const recorder = new BrowserWindow(baseWinConfig());
+    const recorder = new BrowserWindow({
+        ...baseWinConfig(),
+        // 纸墨自绘标题栏，去掉系统边框
+        frame: false,
+    });
     _recorder = recorder;
     rendererPath(recorder, "recorder.html");
     if (dev) recorder.webContents.openDevTools();
@@ -1593,7 +1514,11 @@ mainOn("recordSavePath", ([ext]) => {
 });
 
 function createSuperRecorderWindow(fixed?: RecordRect) {
-    const recorder = new BrowserWindow(baseWinConfig());
+    const recorder = new BrowserWindow({
+        ...baseWinConfig(),
+        // 纸墨自绘标题栏，去掉系统边框
+        frame: false,
+    });
     recorder.minimize();
     rendererPath(recorder, "videoEditor.html");
     if (dev) recorder.webContents.openDevTools();
@@ -2025,7 +1950,11 @@ function createTranslator(op: Omit<translateWinType, "type">) {
 }
 
 function createPhotoEditor(img: string) {
-    const win = new BrowserWindow(baseWinConfig());
+    const win = new BrowserWindow({
+        ...baseWinConfig(),
+        // 纸墨自绘标题栏，去掉系统边框
+        frame: false,
+    });
     win.maximize();
 
     rendererPath(win, "photoEditor.html");
@@ -2070,7 +1999,12 @@ function sizeChanged(next: readonly number[], prev: readonly number[]) {
 function isPositionVisible(x: number, y: number, w: number, h: number) {
     return screen.getAllDisplays().some((d) => {
         const a = d.workArea;
-        return x < a.x + a.width && x + w > a.x && y < a.y + a.height && y + h > a.y;
+        return (
+            x < a.x + a.width &&
+            x + w > a.x &&
+            y < a.y + a.height &&
+            y + h > a.y
+        );
     });
 }
 
@@ -2080,9 +2014,7 @@ function isPositionVisible(x: number, y: number, w: number, h: number) {
  */
 function syncClipHistoryTop() {
     if (!clipHistoryWindow || clipHistoryWindow.isDestroyed()) return;
-    clipHistoryWindow.setAlwaysOnTop(
-        Object.keys(mainWindowL).length === 0,
-    );
+    clipHistoryWindow.setAlwaysOnTop(Object.keys(mainWindowL).length === 0);
 }
 
 /**
@@ -2150,7 +2082,9 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
     const preset = clipHistoryPresetBounds();
     const pos =
         preset ??
-        (hasSavedPos && isPositionVisible(sx, sy, w, h) ? { x: sx, y: sy } : {});
+        (hasSavedPos && isPositionVisible(sx, sy, w, h)
+            ? { x: sx, y: sy }
+            : {});
     const win = new BrowserWindow({
         width: preset?.width ?? w,
         height: preset?.height ?? h,
@@ -2160,6 +2094,8 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
         show: !o?.startMinimized,
         alwaysOnTop: true,
         ...baseWinConfig(),
+        // 纸墨自绘标题栏（金色圆点窗控在渲染进程画），所以去掉系统边框
+        frame: false,
     });
     clipHistoryWindow = win;
     syncClipHistoryTop();
@@ -2226,8 +2162,7 @@ function showClipHistoryWindow() {
  * 点击通知即可打开面板，避免「悄悄记录」的观感。
  */
 function notiClipHistoryFirstRun() {
-    if (!store.get("剪贴板历史.开启") || store.get("剪贴板历史.已提示"))
-        return;
+    if (!store.get("剪贴板历史.开启") || store.get("剪贴板历史.已提示")) return;
     store.set("剪贴板历史.已提示", true);
     const notification = new Notification({
         title: `${app.name} ${t("剪贴板历史")}`,
@@ -2244,7 +2179,9 @@ function notiClipHistoryFirstRun() {
 
 async function createMainWindow(op: MainWinType) {
     if (store.get("主页面.复用") && Object.keys(mainWindowL).length > 0) {
-        const name = Math.max(...Object.keys(mainWindowL).map((i) => Number(i)));
+        const name = Math.max(
+            ...Object.keys(mainWindowL).map((i) => Number(i)),
+        );
         const mainWindow = mainWindowL[name].win;
         op.time = Date.now();
         mainSend(mainWindow.webContents, "editorInit", [name, op]);
@@ -2271,14 +2208,8 @@ async function createMainWindow(op: MainWinType) {
         height: h,
         minWidth: 400,
         ...baseWinConfig(),
-        titleBarStyle: "hidden",
-        titleBarOverlay: {
-            color: bg,
-            symbolColor: nativeTheme.shouldUseDarkColors
-                ? store.get("全局.主题.dark.fontColor")
-                : store.get("全局.主题.light.fontColor"),
-            height: 32,
-        },
+        // 纸墨自绘标题栏（nav 右端的窗控三键），去掉系统边框与原生窗控浮层
+        frame: false,
     });
     mainWindowL[windowName] = {
         browser: { top: 0, bottom: 48 },
@@ -2324,7 +2255,10 @@ async function createMainWindow(op: MainWinType) {
         const b = mainWindow.getNormalBounds();
         const maxed = mainWindow.isMaximized();
         const prev = store.get("主页面大小");
-        if (maxed !== prev[2] || sizeChanged([b.width, b.height], [prev[0], prev[1]]))
+        if (
+            maxed !== prev[2] ||
+            sizeChanged([b.width, b.height], [prev[0], prev[1]])
+        )
             store.set("主页面大小", [b.width, b.height, maxed]);
         for (const i of mainWindow.contentView.children) {
             if (i instanceof WebContentsView) i.webContents.close();
@@ -2362,6 +2296,8 @@ async function createSettingWindow() {
         width: 900,
         height: 700,
         ...baseWinConfig(),
+        // 纸墨自绘标题栏，去掉系统边框
+        frame: false,
     });
 
     rendererPath(settingWindow, "setting.html");
@@ -2690,6 +2626,77 @@ mainOn("windowClose", (_, e) => {
 mainOn("windowMax", (_, e) => {
     BrowserWindow.fromWebContents(e.sender)?.maximize();
 });
+mainOn("windowMinimize", (_, e) => {
+    BrowserWindow.fromWebContents(e.sender)?.minimize();
+});
+mainOn("windowMaximize", (_, e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+});
+mainOn("appVersion", () => app.getVersion());
+
+/** 控制中心的栏目子视图：name → 子视图。翻译/AI 识图/设置 挂在主内容区 */
+const shellViews = new Map<string, WebContentsView>();
+
+/** 控制中心主内容区的矩形（窗口内坐标），渲染端量好发来 */
+const shellSlotRect = new Map<
+    number,
+    { x: number; y: number; w: number; h: number }
+>();
+
+function shellSetBounds(win: BrowserWindow) {
+    const slot = shellSlotRect.get(win.id);
+    if (!slot) return;
+    const rect = {
+        x: slot.x,
+        y: slot.y,
+        width: slot.w,
+        height: slot.h,
+    };
+    for (const v of shellViews.values()) v.setBounds(rect);
+}
+
+mainOn("shellSlot", ([rect], e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    shellSlotRect.set(win.id, rect);
+    shellSetBounds(win);
+});
+
+mainOn("shellSection", ([name], e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    const showView = name !== "clipboard";
+    for (const [key, v] of shellViews) {
+        v.setVisible(showView && key === name);
+    }
+    if (showView && !shellViews.has(name)) {
+        const file =
+            name === "translate"
+                ? "translate.html"
+                : name === "aiVision"
+                  ? "aiVision.html"
+                  : "setting.html";
+        const v = new WebContentsView({
+            webPreferences:
+                name === "setting"
+                    ? {}
+                    : {
+                          nodeIntegration: true,
+                          contextIsolation: false,
+                          webSecurity: false,
+                      },
+        });
+        shellViews.set(name, v);
+        win.contentView.addChildView(v);
+        rendererPath2(v.webContents, file, {});
+        v.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+        v.webContents.on("will-navigate", (ev) => ev.preventDefault());
+        shellSetBounds(win);
+    }
+});
 mainOn("windowTop", ([top], e) => {
     BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(top);
 });
@@ -2908,25 +2915,23 @@ const defaultSetting: setting = {
         模糊: 25,
         缩放: 1,
         不透明度: 0.4,
-        深色模式: "system",
+        深色模式: "light",
         主题: {
             light: {
-                emphasis: "#D7E3F8",
-                barbg: "#D7E3F8",
-                bg: "#FAFAFF",
-                fontColor: "#1A1C1E",
-                fontInEmphasis: "#1A1C1E",
-                iconColor:
-                    "invert(6%) sepia(11%) saturate(695%) hue-rotate(169deg) brightness(95%) contrast(88%)",
+                emphasis: "#E9DCC2",
+                barbg: "#F1E9DA",
+                bg: "#FAF5EA",
+                fontColor: "#241F1A",
+                fontInEmphasis: "#241F1A",
+                iconColor: "none",
             },
             dark: {
-                emphasis: "#3B4858",
-                barbg: "#3B4858",
-                bg: "#1A1C1E",
-                fontColor: "#FAFAFF",
-                fontInEmphasis: "#FAFAFF",
-                iconColor:
-                    "invert(99%) sepia(21%) saturate(4777%) hue-rotate(180deg) brightness(109%) contrast(106%)",
+                emphasis: "#352E24",
+                barbg: "#201C17",
+                bg: "#17140F",
+                fontColor: "#F2EDE3",
+                fontInEmphasis: "#F2EDE3",
+                iconColor: "invert(1)",
             },
         },
     },
@@ -3277,11 +3282,38 @@ function matchBestLan() {
 
 // 增加设置项后，防止undefined
 function fixSettingTree() {
+    paperInkThemeTrans();
     if (store.get("设置版本") === app.getVersion() && !dev) return;
     versionTrans();
     store.set("设置版本", app.getVersion());
     if (store.get("网络.github镜像.启用") === undefined)
         store.set("网络.github镜像.启用", matchBestLan() === "zh-HANS");
+}
+
+/** 旧预设色（黑/白、蓝、绿）的 bg|emphasis|fontColor 指纹 */
+const oldThemeSig = new Set([
+    "#FFFFFF|#DFDFDF|#000",
+    "#FAFAFF|#D7E3F8|#1A1C1E",
+    "#FCFDF6|#D5E8CF|#1A1C19",
+    "#000000|#333333|#fff",
+    "#1A1C1E|#3B4858|#FAFAFF",
+    "#1A1C19|#3B4B38|#FCFDF6",
+]);
+
+/** 纸墨编辑部换色：主题仍是旧预设色就换成纸墨色板，用户自定义过的颜色不动 */
+function paperInkThemeTrans() {
+    const theme = store.get("全局.主题");
+    const sig = (c: { bg: string; emphasis: string; fontColor: string }) =>
+        `${c.bg}|${c.emphasis}|${c.fontColor}`;
+    const light = oldThemeSig.has(sig(theme.light))
+        ? { ...defaultSetting.全局.主题.light }
+        : theme.light;
+    const dark = oldThemeSig.has(sig(theme.dark))
+        ? { ...defaultSetting.全局.主题.dark }
+        : theme.dark;
+    if (light !== theme.light || dark !== theme.dark) {
+        store.set("全局.主题", { light, dark });
+    }
 }
 
 function versionTrans() {

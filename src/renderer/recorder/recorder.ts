@@ -11,11 +11,23 @@ import {
 } from "dkh-ui";
 import { view } from "dkh-ui";
 import { t } from "../../../lib/translate/translate";
+import { iconButton as iconBEl, iconEl } from "../lib/ui";
+import { titleBar } from "../lib/ui";
 /// <reference types="vite/client" />
 import { Class, cssColor, getImgUrl, initStyle, setTitle } from "../root/root";
 
 import store from "../../../lib/store/renderStore";
 initStyle(store);
+
+// 纸墨自绘标题栏（三窗控）
+titleBar(t("录屏"))
+    .style({
+        borderBottom: "1px solid var(--border-color)",
+        flexShrink: "0",
+        position: "relative",
+        zIndex: "100",
+    })
+    .addInto();
 
 setTitle(t("录屏"));
 
@@ -528,13 +540,6 @@ function runFfmpeg(type: "ts" | "clip" | "join", n: number, args: string[]) {
             console.log(data.toString());
         });
     });
-}
-
-function iconEl(src: IconType) {
-    return image(getImgUrl(`${src}.svg`), "icon").class("icon");
-}
-function iconBEl(src: IconType) {
-    return button().add(image(getImgUrl(`${src}.svg`), "icon").class("icon"));
 }
 
 class time_i extends HTMLElement {

@@ -1,9 +1,21 @@
-import { button, ele, image, input, pack, textarea, txt, view } from "dkh-ui";
+import {
+    type ElType,
+    button,
+    ele,
+    image,
+    input,
+    pack,
+    textarea,
+    txt,
+    view,
+} from "dkh-ui";
+import type { AppAction, AppActionState, ShellSection } from "../../../lib/ipc";
 import { renderOn, renderSend, renderSendSync } from "../../../lib/ipc";
 import store from "../../../lib/store/renderStore";
 import { t } from "../../../lib/translate/translate";
 import type { ClipItem } from "../../ShareTypes";
 import type { IconType } from "../../iconTypes";
+import { iconButton, iconEl, titleBar } from "../lib/ui";
 import { Class, cssVar, getImgUrl, initStyle, setTitle } from "../root/root";
 
 initStyle(store);
@@ -14,20 +26,208 @@ document.body.classList.add("glass");
 
 const padding = cssVar("o-padding");
 
-function iconEl(src: IconType, cls?: string) {
-    return image(getImgUrl(`${src}.svg`), "icon").class("icon").class(cls ?? "");
-}
-
-function iconB(src: IconType, title: string, onClick: () => void, cls?: string) {
-    return button(iconEl(src, cls))
-        .attr({ title })
-        .on("click", () => onClick());
+function iconB(
+    src: IconType,
+    title: string,
+    onClick: () => void,
+    cls?: string,
+) {
+    return iconButton(src, title, cls).on("click", () => onClick());
 }
 
 function fmtTime(ts: number) {
     const d = new Date(ts);
     const p = (n: number) => String(n).padStart(2, "0");
     return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 控制中心的功能清单。全量动作一张表，四项一组，没有一个是"失踪的"；
+ *  状态项（bool/seg）由主进程回传的最新状态渲染，点击 = 派发对应动作 */
+type FeatureItem = {
+    action: AppAction | ((v: string) => void);
+    label: string;
+    icon: IconType;
+    group: string;
+    size?: "big";
+    state?: "bool" | "seg";
+    segLabel?: (v: string) => string;
+    /** 仅开发者模式显示（root 的 [data-dev] 机制会藏起它） */
+    dev?: boolean;
+    /** 渲染后回填的条目按钮，applyState 靠它改外观 */
+    _el?: ReturnType<typeof button>;
+};
+
+/** 壳的页面栏目。切栏目 = 主内容区换内容；setting/translate/aiVision 是子视图，clipboard 是壳本页 */
+const sections: { key: ShellSection; label: string; icon: IconType }[] = [
+    { key: "clipboard", label: "剪贴板", icon: "paste" },
+    { key: "translate", label: "翻译", icon: "translate" },
+    { key: "aiVision", label: "AI 识图", icon: "ai_check" },
+    { key: "setting", label: "设置", icon: "setting" },
+];
+
+const featureGroups: [string, FeatureItem[]][] = [
+    [
+        "搜索与识别",
+        [
+            {
+                action: "autoOpen",
+                label: "自动识别",
+                icon: "scan",
+                group: "搜索与识别",
+                size: "big",
+            },
+            {
+                action: "quickShot",
+                label: "快速截屏",
+                icon: "camera",
+                group: "搜索与识别",
+                size: "big",
+            },
+            {
+                action: "clipSearch",
+                label: "截屏搜索",
+                icon: "search",
+                group: "搜索与识别",
+            },
+            {
+                action: "selectionSearch",
+                label: "选中搜索",
+                icon: "text",
+                group: "搜索与识别",
+            },
+            {
+                action: "clipboardSearch",
+                label: "剪贴板搜索",
+                icon: "paste",
+                group: "搜索与识别",
+            },
+            {
+                action: "ocr",
+                label: "文字识别（OCR）",
+                icon: "ocr",
+                group: "搜索与识别",
+            },
+            {
+                action: "imageSearch",
+                label: "以图搜图",
+                icon: "img",
+                group: "搜索与识别",
+            },
+        ],
+    ],
+    [
+        "录屏与贴图",
+        [
+            {
+                action: "superRecord",
+                label: "超级录屏",
+                icon: "start_record",
+                group: "录屏与贴图",
+                size: "big",
+            },
+            {
+                action: "dingFromClipboard",
+                label: "从剪贴板贴图",
+                icon: "ding",
+                group: "录屏与贴图",
+            },
+        ],
+    ],
+    [
+        "窗口",
+        [
+            {
+                action: "mainPage",
+                label: "主页面",
+                icon: "main",
+                group: "窗口",
+                size: "big",
+            },
+            {
+                action: "browserOpenToggle",
+                label: "浏览器打开",
+                icon: "browser",
+                group: "窗口",
+                state: "bool",
+            },
+            {
+                action: "reuseMainToggle",
+                label: "复用主页面",
+                icon: "add_history",
+                group: "窗口",
+                state: "bool",
+            },
+        ],
+    ],
+    [
+        "帮助与系统",
+        [
+            {
+                action: "help",
+                label: "教程帮助",
+                icon: "help",
+                group: "帮助与系统",
+            },
+            {
+                action: "checkUpdate",
+                label: "检查更新",
+                icon: "reload",
+                group: "帮助与系统",
+            },
+            {
+                action: "feedback",
+                label: "反馈",
+                icon: "link",
+                group: "帮助与系统",
+            },
+            {
+                action: "restart",
+                label: "重启",
+                icon: "recume",
+                group: "帮助与系统",
+            },
+            {
+                action: "devExit",
+                label: "退出开发者模式",
+                icon: "hide",
+                group: "帮助与系统",
+                dev: true,
+            },
+            {
+                action: "exit",
+                label: "退出",
+                icon: "close",
+                group: "帮助与系统",
+            },
+        ],
+    ],
+];
+
+function act(a: AppAction | ((v: string) => void)): AppActionState {
+    return renderSendSync("appAction", [a as AppAction]);
+}
+
+function applyState(state: AppActionState) {
+    for (const [, items] of featureGroups) {
+        for (const item of items) {
+            const el = item._el;
+            if (!el) continue;
+            if ("state" in item && item.state === "bool") {
+                const on =
+                    item.action === "browserOpenToggle"
+                        ? state.browserOpen
+                        : item.action === "reuseMainToggle"
+                          ? state.reuseMain
+                          : false;
+                el.style({ outlineColor: on ? "var(--accent-gold)" : "" });
+            }
+            if ("state" in item && item.state === "seg") {
+                el.el.innerText = item.segLabel
+                    ? item.segLabel(state.mainMode)
+                    : state.mainMode;
+            }
+        }
+    }
 }
 
 let trash = false;
@@ -85,6 +285,71 @@ const typeFilters = (
     }),
 }));
 
+// ── 工具组（侧边栏里收纳全局动作，可折叠，默认展开） ──────────────
+
+function toolGroupEl() {
+    const head = button()
+        .add([iconEl("super_edit"), txt(t("工具组"))])
+        .attr({ title: t("工具组") })
+        .style({
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            width: "100%",
+            height: "28px",
+            padding: "2px 8px",
+            justifyContent: "flex-start",
+            color: "var(--font-color-l)",
+            fontFamily: "var(--title-font)",
+            fontSize: "0.85em",
+        });
+    const body = view("y").style({ gap: "2px" });
+    let open = true;
+    for (const [, items] of featureGroups) {
+        body.add(
+            view("y")
+                .style({ gap: "2px" })
+                .add(
+                    items.map((item) => {
+                        const row = button()
+                            .add([
+                                iconEl(item.icon),
+                                txt(t(item.label)).style({
+                                    fontSize: "0.88em",
+                                }),
+                            ])
+                            .attr({
+                                title: t(item.label),
+                                ...(item.dev ? { "data-dev": "" } : {}),
+                            })
+                            .style({
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                width: "100%",
+                                height: "26px",
+                                padding: "2px 8px 2px 22px",
+                                justifyContent: "flex-start",
+                            })
+                            .on("click", () => {
+                                const st = act(item.action);
+                                applyState(st);
+                            });
+                        item._el = row;
+                        return row;
+                    }),
+                ),
+        );
+    }
+    head.on("click", () => {
+        open = !open;
+        body.style({ display: open ? "" : "none" });
+    });
+    const wrap = view("y").style({ gap: "2px" }).add([head, body]);
+    applyState(renderSendSync("appAction", ["getState"]));
+    return wrap;
+}
+
 const bar = view()
     .class(Class.group)
     .style({
@@ -114,15 +379,194 @@ const listEl = view().style({
     minHeight: "0",
 });
 
+// ── 壳布局：顶栏 + 侧边栏 + 主内容区 ────────────────────────────
+
 pack(document.body).style({
     display: "flex",
     flexDirection: "column",
     height: "100vh",
     overflow: "hidden",
 });
-bar.addInto();
-warnEl.addInto();
-listEl.addInto();
+
+/** 顶栏快路径：快速截屏 / 自动识别 / 回到剪贴板 */
+const quickBtns = [
+    iconB("camera", t("快速截屏"), () => act("quickShot")),
+    iconB("scan", t("自动识别"), () => act("autoOpen")),
+    iconB("paste", t("回到剪贴板"), () => goSection("clipboard")),
+];
+
+const head = titleBar(t("控制中心"), quickBtns).style({
+    borderBottom: "1px solid var(--border-color)",
+});
+
+// 侧边栏：品牌 + 页面栏目 + 工具组
+const side = view("y").style({
+    width: "180px",
+    flexShrink: "0",
+    overflowY: "auto",
+    padding: "8px",
+    gap: "4px",
+    borderRight: "1px solid var(--border-color)",
+});
+
+const brand = view("x").style({
+    alignItems: "center",
+    gap: "8px",
+    padding: "8px 6px 12px",
+    fontFamily: "var(--title-font)",
+});
+let appVersion = "";
+try {
+    appVersion = renderSendSync("appVersion", []) ?? "";
+} catch (error) {}
+brand.add([
+    image(getImgUrl("main.svg"), "icon").class("icon").style({
+        width: "20px",
+        height: "20px",
+        maxWidth: "none",
+        maxHeight: "none",
+    }),
+    view("y")
+        .style({ gap: "0", lineHeight: "1.2" })
+        .add([
+            txt("eSearch").style({ fontWeight: "600", fontSize: "1.05em" }),
+            txt(appVersion).style({
+                color: "var(--font-color-l)",
+                fontFamily: "var(--num-font)",
+                fontSize: "0.75em",
+            }),
+        ]),
+]);
+
+/** 页面栏目按钮组 */
+const sectionBtns = new Map<ShellSection, ElType<HTMLElement>>();
+const sectionList = view("y").style({ gap: "2px" });
+let currentSection: ShellSection = "clipboard";
+function goSection(name: ShellSection) {
+    if (currentSection === name) return;
+    currentSection = name;
+    for (const [key, el] of sectionBtns) {
+        el.style({
+            backgroundColor: key === name ? "var(--m-color-bb)" : "transparent",
+            color:
+                key === name
+                    ? "var(--font-color-emphasis)"
+                    : "var(--font-color)",
+        });
+    }
+    // clipboard 用壳本页 DOM，其余栏目交给主进程挂子视图
+    showLocal(name === "clipboard");
+    renderSend("shellSection", [name]);
+    setTitle(name === "clipboard" ? t("剪贴板历史") : t("控制中心"));
+}
+for (const sec of sections) {
+    const el = button()
+        .add([iconEl(sec.icon), txt(t(sec.label))])
+        .attr({ title: t(sec.label) })
+        .style({
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            width: "100%",
+            height: "32px",
+            padding: "2px 8px",
+            justifyContent: "flex-start",
+        })
+        .on("click", () => goSection(sec.key));
+    sectionBtns.set(sec.key, el);
+    sectionList.add(el);
+}
+
+/** 主页面模式：单选设置（自动/搜索/翻译），三个选项同屏、选中墨绿实心 */
+const modeBtns = new Map<string, ElType<HTMLElement>>();
+const modeRow = view("x").style({ gap: "4px" });
+const modeSeg = view("y").style({ gap: "2px", padding: "8px 6px" });
+modeSeg.add(
+    txt(t("主页面模式")).style({
+        color: "var(--font-color-l)",
+        fontSize: "0.85em",
+        fontFamily: "var(--title-font)",
+        marginBottom: "2px",
+    }),
+);
+function applyMode(m: string) {
+    for (const [key, el] of modeBtns) {
+        const on = key === m;
+        el.style({
+            backgroundColor: on ? "var(--accent-pine)" : "transparent",
+            color: on ? "#fff" : "var(--font-color)",
+        });
+    }
+}
+for (const [key, label] of [
+    ["auto", "自动"],
+    ["search", "搜索"],
+    ["translate", "翻译"],
+]) {
+    const el = button(t(label))
+        .style({
+            flex: "1",
+            height: "26px",
+            padding: "0 4px",
+            fontSize: "0.85em",
+            justifyContent: "center",
+        })
+        .on("click", () => {
+            const st = act(
+                `mainMode${key[0].toUpperCase()}${key.slice(1)}` as AppAction,
+            );
+            applyMode(st.mainMode);
+        });
+    modeBtns.set(key, el);
+    modeRow.add(el);
+}
+modeSeg.add(modeRow);
+
+side.add([brand, sectionList, toolGroupEl(), modeSeg]);
+
+/** 主内容区：clipboard 栏目的 DOM 挂这里；子视图窗口内坐标也对齐它 */
+const main = view().style({
+    flex: "1",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "0",
+    position: "relative",
+});
+
+const localPane = view().style({
+    display: "flex",
+    flexDirection: "column",
+    flex: "1",
+    minHeight: "0",
+});
+localPane.add([bar, warnEl, listEl]);
+main.add(localPane);
+
+const body = view("x").style({ flex: "1", minHeight: "0" });
+body.add([side, main]);
+
+head.addInto();
+body.addInto();
+
+/** clipboard 栏目本地 DOM 的显隐（切到子视图栏目时藏起） */
+function showLocal(show: boolean) {
+    localPane.style({ display: show ? "flex" : "none" });
+}
+
+/** 主内容区矩形发给主进程，子视图（翻译/AI 识图/设置）按它对齐 */
+function syncSlot() {
+    const r = main.el.getBoundingClientRect();
+    renderSend("shellSlot", [
+        {
+            x: Math.round(r.x),
+            y: Math.round(r.y),
+            w: Math.round(r.width),
+            h: Math.round(r.height),
+        },
+    ]);
+}
+new ResizeObserver(() => syncSlot()).observe(main.el);
+window.addEventListener("resize", () => syncSlot());
 
 /**
  * 面板被唤出时让列表整体淡入上浮一下。
@@ -259,7 +703,10 @@ function itemEl(item: ClipItem) {
             opacity: "0.7",
             fontSize: "0.85em",
         })
-        .add([txt(typeName), txt(fmtTime(item.time))]);
+        .add([
+            txt(typeName).style({ color: "var(--accent-pine)" }),
+            txt(fmtTime(item.time)).style({ fontFamily: "var(--num-font)" }),
+        ]);
 
     const editing = !trash && editingId === item.id;
     const actions = view().class(Class.group).style({ marginLeft: "auto" });
@@ -400,3 +847,8 @@ render();
 renderOn("clipHistoryChange", () => {
     render();
 });
+
+// 主进程请求切栏目（如动作表的「设置」从别处派发）
+renderOn("shellGo", ([name]) => goSection(name));
+syncSlot();
+applyMode(renderSendSync("appAction", ["getState"]).mainMode);

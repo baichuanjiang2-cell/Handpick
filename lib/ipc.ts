@@ -88,6 +88,16 @@ type Message = {
     noti: (op: { body: string; title: string }) => void;
     windowClose: () => void;
     windowMax: () => void;
+    windowMinimize: () => void;
+    /** 最大化 / 还原切换 */
+    windowMaximize: () => void;
+    appVersion: () => string;
+    /** 控制中心主内容区的矩形（窗口内坐标），栏目子视图按它对齐 */
+    shellSlot: (rect: { x: number; y: number; w: number; h: number }) => void;
+    /** 渲染→主：控制中心切了栏目，主进程管理子视图显隐 */
+    shellSection: (name: ShellSection) => void;
+    /** 主→渲染：请求控制中心切栏目（如 appAction 的「设置」） */
+    shellGo: (name: ShellSection) => void;
     windowTop: (ignore: boolean) => void;
     windowTopest: (ignore: boolean) => void;
     windowIgnoreMouse: (top: boolean) => void;
@@ -216,7 +226,49 @@ type Message = {
     clipHistoryApplySetting: () => void;
     /** 主进程 → 页面：历史发生变化 */
     clipHistoryChange: () => void;
+    /** 控制中心 / 托盘共用的动作派发：一张动作表、两处入口，避免入口丢功能。
+     *  同步返回开关项的最新状态，渲染端不用再问一次，免得读到执行前的旧值 */
+    appAction: (action: AppAction | "getState") => AppActionState;
 };
+
+/** 控制中心的栏目。clipboard 用壳本页 DOM，其余是挂在主内容区的子视图 */
+type ShellSection = "clipboard" | "translate" | "aiVision" | "setting";
+
+/** 工具组里开关项的当前状态 */
+type AppActionState = {
+    paused: boolean;
+    browserOpen: boolean;
+    reuseMain: boolean;
+    mainMode: "auto" | "search" | "translate";
+    dev: boolean;
+};
+
+/** 软件全局动作清单。托盘菜单与控制中心功能清单都只派发这组动作 */
+type AppAction =
+    | "autoOpen"
+    | "clipSearch"
+    | "selectionSearch"
+    | "clipboardSearch"
+    | "showCenter"
+    | "pauseToggle"
+    | "ocr"
+    | "imageSearch"
+    | "superRecord"
+    | "browserOpenToggle"
+    | "dingFromClipboard"
+    | "mainModeAuto"
+    | "mainModeSearch"
+    | "mainModeTranslate"
+    | "reuseMainToggle"
+    | "mainPage"
+    | "settings"
+    | "help"
+    | "devExit"
+    | "checkUpdate"
+    | "feedback"
+    | "restart"
+    | "quickShot"
+    | "exit";
 
 const name = "ipc";
 
@@ -233,6 +285,7 @@ function mainSend<K extends keyof Message>(
     key: K,
     data: Parameters<Message[K]>,
 ): void {
+    if (!isKnownKey(key)) return;
     webContents?.send(name, key, data);
 }
 
@@ -240,15 +293,128 @@ function renderOn<K extends keyof Message>(
     key: K,
     callback: (data: Parameters<Message[K]>) => void,
 ) {
+    if (!isKnownKey(key) || typeof callback !== "function") return;
     const callbacks = renderOnData.get(key) || [];
     callbacks.push(callback);
     renderOnData.set(key, callbacks);
+}
+
+/**
+ * 通道名合法性：显式 switch 枚举全部合法通道。
+ * 这是 Message 钥匙的闭集，新增通道时必须同步补 case。
+ */
+function isKnownKey(key: unknown): key is keyof Message {
+    switch (key) {
+        case "addDing":
+        case "appAction":
+        case "appVersion":
+        case "browserIcon":
+        case "browserLoad":
+        case "browserNew":
+        case "browserTitle":
+        case "browserUrl":
+        case "clearCache":
+        case "clearStorage":
+        case "clipHistoryApplySetting":
+        case "clipHistoryChange":
+        case "clipHistoryClear":
+        case "clipHistoryCopy":
+        case "clipHistoryEditFiles":
+        case "clipHistoryEditText":
+        case "clipHistoryEmptyTrash":
+        case "clipHistoryEncryption":
+        case "clipHistoryFull":
+        case "clipHistoryGet":
+        case "clipHistoryPin":
+        case "clipHistoryPurge":
+        case "clipHistoryRemove":
+        case "clipHistoryRestore":
+        case "clipHistorySetPaused":
+        case "clipHistoryThumb":
+        case "clip_close":
+        case "clip_ding":
+        case "clip_editor":
+        case "clip_hide":
+        case "clip_init":
+        case "clip_mac_app":
+        case "clip_ocr":
+        case "clip_qr":
+        case "clip_record":
+        case "clip_recordx":
+        case "clip_save":
+        case "clip_search":
+        case "clip_show":
+        case "clip_stop_long":
+        case "clip_translate":
+        case "dialogMessage":
+        case "dingIgnore":
+        case "dingMouse":
+        case "dingShare":
+        case "edit_pic":
+        case "editorInit":
+        case "exit":
+        case "feedbackBug":
+        case "feedbackFeature":
+        case "getAutoStart":
+        case "getDefaultSetting":
+        case "getLogs":
+        case "getMousePos":
+        case "getScreens":
+        case "githubUrl":
+        case "hotkey":
+        case "move_user_data":
+        case "noti":
+        case "ok_save":
+        case "openUrl":
+        case "open_this_browser":
+        case "recordCamera":
+        case "recordInit":
+        case "recordMemWarning":
+        case "recordSavePath":
+        case "recordSavePathReturn":
+        case "recordStart":
+        case "recordStartStop":
+        case "recordState":
+        case "recordStop":
+        case "recordTime":
+        case "recorderReady":
+        case "reload":
+        case "reloadMainFromSetting":
+        case "runPath":
+        case "save_file_path":
+        case "selectPath":
+        case "setAutoStart":
+        case "shellGo":
+        case "shellSection":
+        case "shellSlot":
+        case "superPhotoEditorInit":
+        case "superRecorderInit":
+        case "systemLan":
+        case "tabView":
+        case "tabViewSize":
+        case "theme":
+        case "translatorInit":
+        case "userDataPath":
+        case "viewEvent":
+        case "windowClose":
+        case "windowIgnoreMouse":
+        case "windowMax":
+        case "windowMaximize":
+        case "windowMinimize":
+        case "windowShow":
+        case "windowTop":
+        case "windowTopest":
+            return true;
+        default:
+            return false;
+    }
 }
 
 function renderSend<K extends keyof Message>(
     key: K,
     data: Parameters<Message[K]>,
 ): void {
+    if (!isKnownKey(key)) return;
     ipcRenderer.send(name, key, data);
 }
 
@@ -256,6 +422,7 @@ function renderSendSync<K extends keyof Message>(
     key: K,
     data: Parameters<Message[K]>,
 ): ReturnType<Message[K]> {
+    if (!isKnownKey(key)) return undefined as ReturnType<Message[K]>;
     return ipcRenderer.sendSync(name, key, data);
 }
 
@@ -266,6 +433,7 @@ function mainOn<K extends keyof Message>(
         event: Electron.IpcMainEvent,
     ) => ReturnType<Message[K]> | Promise<ReturnType<Message[K]>>,
 ) {
+    if (!isKnownKey(key) || typeof callback !== "function") return;
     const callbacks = mainOnData.get(key) || [];
     callbacks.push(callback);
     mainOnData.set(key, callbacks);
@@ -293,6 +461,7 @@ function mainOnReflect<K extends VoidKeys<Message>>(
 }
 
 ipcRenderer?.on(name, (event, key, data) => {
+    if (!isKnownKey(key)) return;
     const callbacks = renderOnData.get(key);
     if (callbacks) {
         for (const callback of callbacks) {
@@ -304,6 +473,10 @@ ipcRenderer?.on(name, (event, key, data) => {
 });
 
 ipcMain?.on(name, async (event, key, data) => {
+    if (!isKnownKey(key)) {
+        event.returnValue = null;
+        return;
+    }
     const callbacks = mainOnData.get(key);
     if (callbacks) {
         for (const callback of callbacks) {
@@ -332,3 +505,4 @@ export {
     mainOn,
     mainOnReflect,
 };
+export type { AppAction, AppActionState, ShellSection };
