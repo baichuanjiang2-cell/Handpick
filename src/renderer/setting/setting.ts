@@ -5285,7 +5285,7 @@ function about() {
                 .catch((error) => console.log("error", error));
         });
     const update = view("y").style({ gap: "16px" });
-    const desc = p(packageJson.description);
+    const desc = p(packageJson.description).class("st-tagline");
 
     const infoEl = view("y").style({ gap: "4px" });
 
@@ -5302,17 +5302,6 @@ function about() {
             " ",
             a("https://github.com/xushengfeng").add("赞赏"),
         ]),
-        view().add([
-            a(renderSendSync("feedbackBug", [])).add("反馈问题"),
-            " ",
-            a(
-                renderSendSync("feedbackFeature", [
-                    { title: "建议在……添加……功能/改进" },
-                ]),
-            ).add("提供建议"),
-            " ",
-            txt("QQ:1057170038"),
-        ]),
         view().add(
             a(
                 "https://github.com/xushengfeng/eSearch/tree/master/lib/translate",
@@ -5325,11 +5314,7 @@ function about() {
                 noI18n(packageJson.license),
             ),
         ]),
-        view().add(
-            noI18n(
-                `Copyright © 2021-${new Date().getFullYear()} ${packageJson.author.name} ${packageJson.author.email}`,
-            ),
-        ),
+        view().add("本软件基于 eSearch（xushengfeng）修改"),
     ]);
 
     return el.add([

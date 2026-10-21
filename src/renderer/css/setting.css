@@ -95,6 +95,11 @@
     align-items: center;
 }
 
+/* 标语属于展示文字（ADR 0011 七类之一） */
+.st-tagline {
+    font-family: var(--display-font);
+}
+
 /* :where 让按钮的展示字体不压过 .mono 等等宽样式 */
 :where(.st-main, .st-side) button {
     font-family: var(--display-font);

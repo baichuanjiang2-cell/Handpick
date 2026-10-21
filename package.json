@@ -1,7 +1,7 @@
 {
     "name": "eSearch",
     "version": "15.7.0",
-    "description": "识屏 · 搜索",
+    "description": "识屏 · 录屏 · 剪贴板历史 · 翻译",
     "main": "./out/main/main.js",
     "scripts": {
         "pack": "npm run build && electron-builder --dir -c electron-builder.config.js",
@@ -20,7 +20,7 @@
         "name": "xsf",
         "email": "xushengfeng_zg@163.com"
     },
-    "homepage": "https://github.com/xushengfeng/eSearch/",
+    "homepage": "https://github.com/baichuanjiang2-cell/eSearch-paste/",
     "license": "GPL-3.0",
     "packageManager": "pnpm@10.17.0",
     "dependencies": {
