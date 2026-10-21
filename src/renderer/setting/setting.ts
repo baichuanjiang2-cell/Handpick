@@ -5111,6 +5111,29 @@ function releaseVersion(tag: string) {
     return tag.replace(/^v/, "").match(/^\d+(?:\.\d+)*/)?.[0] ?? tag;
 }
 
+const forkReleasesApi = "repos/baichuanjiang2-cell/eSearch-paste/releases";
+
+/** 中转镜像会整站失效（限流 429、直接连不上），这时退回直连，否则面板永远空白 */
+async function fetchForkReleases() {
+    const direct = `https://api.github.com/${forkReleasesApi}`;
+    const mirror = githubUrl(forkReleasesApi, "api");
+    let lastError: unknown;
+    for (const url of mirror === direct ? [direct] : [mirror, direct]) {
+        try {
+            const r = await fetch(url, {
+                method: "GET",
+                redirect: "follow",
+                signal: AbortSignal.timeout(8000),
+            });
+            if (!r.ok) throw new Error(String(r.status));
+            return await r.json();
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    throw lastError;
+}
+
 function isDarkMode() {
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
@@ -5188,17 +5211,7 @@ function about() {
         .attr({ title: "点击检查更新" })
         .class(Class.mono, Class.click)
         .on("click", () => {
-            fetch(
-                githubUrl(
-                    "repos/baichuanjiang2-cell/eSearch-paste/releases",
-                    "api",
-                ),
-                {
-                    method: "GET",
-                    redirect: "follow",
-                },
-            )
-                .then((response) => response.json())
+            fetchForkReleases()
                 .then((re) => {
                     console.log(re);
                     const l: {

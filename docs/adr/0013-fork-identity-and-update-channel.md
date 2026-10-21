@@ -19,6 +19,8 @@ Status: accepted
 
 改成：版本一律从 `tag_name` 剥出来（去掉前导 `v` 与其后的非数字段，`v15.7.0-paste` → `15.7.0`），弹窗显示、大小比较、`更新.忽略版本` 都用这个剥壳值；资产前缀改成 `esearch_paste-`，与 `electron-builder.config.js` 的 `artifactName` 对齐。更新面板每一栏的标题仍显示 release 名称原文（它是人写的发布说明标题，不是版本号）。
 
+面板取 releases 走 `网络.github镜像`，而镜像默认对简体中文开启、且镜像站会整站失效（实测 `ghfile.geekertao.top` 返回 429、`api.kkgithub.com` 连接失败，对上游仓库同样失败），所以 `fetchForkReleases` 在镜像失败或 8 秒超时时退回直连 `api.github.com`：镜像只是加速，不该成为单点。主进程的 `checkUpdate` 一直是硬编码直连，不经镜像，无需同步。
+
 ## 故意保留上游
 
 以下几处看着像"忘了改"，其实是改坏功能的，清单与理由一并留档：
@@ -43,7 +45,7 @@ Status: accepted
 
 - **上游发新版，本界面不再提示**。只看得见自己仓库的版本；跟进上游靠手动 merge（仓库里 `Merge branch 'xushengfeng:master'` 那个 commit 就是既有做法）。
 - 版本比较与本分支的 tag 写法绑定。换命名规则要同步改两处 `releaseVersion`（`src/main/main.ts`、`src/renderer/setting/setting.ts`）—— 两个进程各留一份是刻意的，主进程与渲染进程不共享这个 helper。
-- 反馈入口指向 fork 的 Issues，而 fork 是 clone 来的、`has_issues` 默认为 `false`：**不开 Issues 这三处就是 404**。模板里的 `labels=新需求` 用的标签在本分支仓库上也不存在（上游的自定义标签不会被 fork 继承），提交时该标签可能被 GitHub 丢弃。
+- 反馈入口指向 fork 的 Issues。fork 是 clone 来的，`has_issues` 默认 `false`，**不开 Issues 这三处就是 404**；上游的自定义标签也不会被 fork 继承。2026-10-21 已在本分支仓库开 Issues 并补建 `新需求` 标签，仓库外的这两项设置不在版本控制里，重建仓库时要重来一遍。
 - 「帮助」指 fork `master`，但那份 `docs/use/` 是从上游继承的，**不含控制中心、剪贴板历史、纸墨界面**。链接从 404 变成能打开，内容仍落后于功能，要补的是文档而不是链接。
 - `description` 一处改动同时影响界面标语与安装包元数据；这两处分居 renderer 与打包阶段，没有运行时耦合。
 - 新增两条文案（标语、基于声明）进入 `lib/translate/source.json`，7 个语言的译文由本轮代写，其中阿拉伯语与世界语没有母语者验证。旧条目一律不动。
