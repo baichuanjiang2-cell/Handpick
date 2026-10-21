@@ -23,8 +23,8 @@ Grab either file from [Releases](https://github.com/baichuanjiang2-cell/eSearch-
 
 | File | Size | Notes |
 | --- | --- | --- |
-| `esearch_paste-15.7.0-win32-x64.exe` | ~186 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
-| `esearch_paste-15.7.0-win32-x64.zip` | ~246 MB | Portable — unzip and run |
+| `esearch_paste-15.7.1-win32-x64.exe` | ~186 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
+| `esearch_paste-15.7.1-win32-x64.zip` | ~246 MB | Portable — unzip and run |
 
 The `esearch_paste-` prefix exists only to avoid confusion with the official build (`eSearch-<version>-win32-x64.exe`). It changes **the file name only** — the internal app name, install location and data directory are unchanged.
 
