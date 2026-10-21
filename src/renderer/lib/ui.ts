@@ -41,14 +41,14 @@ function windowCtl(
     return button(glyph)
         .attr({ title: name })
         .style({
-            width: "28px",
-            height: "28px",
+            width: "var(--win-ctl-size, 28px)",
+            height: "var(--win-ctl-size, 28px)",
             padding: "0",
             borderRadius: "var(--border-radius)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "13px",
+            fontSize: "var(--win-ctl-font, 13px)",
             lineHeight: "1",
             color: color,
             outline: "none",
@@ -62,7 +62,7 @@ function windowControls() {
     return view("x")
         .style({
             marginLeft: "auto",
-            gap: "2px",
+            gap: "var(--win-ctl-gap, 2px)",
             alignItems: "center",
             // @ts-ignore
             "-webkit-app-region": "no-drag",
@@ -80,7 +80,14 @@ function windowControls() {
         ]);
 }
 
-function titleBar(title: string, middle?: ElType<HTMLElement>[]) {
+/**
+ * @param embedded 嵌进控制中心壳时传 true：壳顶栏已有窗控，这里只画标题不画窗控
+ */
+function titleBar(
+    title: string,
+    middle?: ElType<HTMLElement>[],
+    embedded?: boolean,
+) {
     return view("x")
         .style({
             // @ts-ignore
@@ -105,7 +112,7 @@ function titleBar(title: string, middle?: ElType<HTMLElement>[]) {
                 })
                 .add(middle ?? []),
         )
-        .add(windowControls());
+        .add(embedded ? [] : windowControls());
 }
 
 export { iconEl, iconButton, titleBar, windowControls };

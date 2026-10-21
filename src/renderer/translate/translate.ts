@@ -4,6 +4,7 @@ const fs = require("node:fs") as typeof import("fs");
 import { initFastText } from "@xushengfeng/fasttext_wasm";
 import { writeText } from "../lib/clipboard";
 
+import { renderSend } from "../../../lib/ipc";
 import store from "../../../lib/store/renderStore";
 
 import {
@@ -11,7 +12,6 @@ import {
     ele,
     frame,
     image,
-    p,
     pText,
     pack,
     spacer,
@@ -31,6 +31,13 @@ function iconButton(img: IconType) {
     return button(image(getImgUrl(`${img}.svg`), "icon").class("icon"));
 }
 
+/** 空配置引导：点一下切到控制中心的设置栏目添加翻译器 */
+function noTranslatorTip() {
+    return button(t("请在设置添加翻译器")).on("click", () => {
+        renderSend("appAction", ["settings"]);
+    });
+}
+
 pack(document.body)
     .style({
         display: "flex",
@@ -47,7 +54,9 @@ const input = ele("textarea").style({
     "field-sizing": "content",
     "min-height": "4lh",
     maxHeight: "50%",
-    outline: "none",
+    // 纸底和输入区同色就看不出边界，浅一号底 + 细墨线描边
+    backgroundColor: "color-mix(in srgb, var(--font-color) 6%, var(--bg))",
+    outline: "1px solid var(--border-color)",
     transition: "none",
     flexShrink: 0,
 });
@@ -199,7 +208,7 @@ function translate(_text: string) {
     );
 
     if (fyq.length === 0) {
-        results.add(p(t("请在设置添加翻译器")));
+        results.add(noTranslatorTip());
     }
 }
 
@@ -263,7 +272,7 @@ function pick2First(list: { text: string; lan: string }[], toPick: string[]) {
 }
 
 function detectLan(text: string) {
-    const fromLan = fasttext.identify(text)?.alpha2 ?? "auto";
+    const fromLan = fasttext?.identify(text)?.alpha2 ?? "auto";
     console.log("检测语言：", fromLan);
 
     const m = matchFitLan(fromLan, c常用语言);
@@ -321,8 +330,21 @@ lansTo.add(
 
 input.el.value = inputText;
 
-const ft = (await initFastText()).FastText();
-const fasttext = await ft.loadModel();
+/** 语言识别模型要联网下载，加载失败也得能打字翻译，所以不等它，好了再启用识别 */
+let fasttext:
+    | {
+          identify(text: string): { alpha2: string | null } | undefined;
+      }
+    | undefined;
+initFastText()
+    .then((m) => m.FastText().loadModel())
+    .then((model) => {
+        fasttext = model;
+        if (input.el.value.trim()) detectLan(input.el.value);
+    })
+    .catch((err) => {
+        console.error("语言识别模型加载失败", err);
+    });
 
 if (inputText) {
     detectLan(inputText);
@@ -330,6 +352,8 @@ if (inputText) {
 } else {
     lansFrom.sv("auto");
     lansTo.sv(store.get("语言.语言"));
+    // 空配置打开就提示（translate() 在触发时也会补一条）
+    if (fyq.length === 0) results.add(noTranslatorTip());
 }
 
 let composing = false;

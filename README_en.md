@@ -55,7 +55,7 @@ Windows may show the blue "Windows protected your PC" warning; click **More info
 
 ## The Control Center
 
-Three ways to open it: click the taskbar button, right-click the tray icon → **Open Control Center**, or click the first-run notification. The window defaults to ~**420 × 640**, is freely movable/resizable, and **remembers its position and size** (if a monitor change puts it off-screen, it recenters automatically).
+Three ways to open it: click the taskbar button, right-click the tray icon → **Open Control Center**, or click the first-run notification. The window defaults to ~**1100 × 720** (shrunk to fit the screen's work area on small displays), is freely movable/resizable, and **remembers its position and size** (if a monitor change puts it off-screen, it recenters automatically).
 
 Layout — top bar, sidebar, main area:
 

@@ -1670,7 +1670,7 @@ const s: Partial<settingItem<SettingPath>> = {
         el: () => xNumber("", { min: 0, max: 1, step: 0.05 }),
     },
     "全局.深色模式": {
-        name: "深色模式",
+        name: "外观模式",
         el: (v) =>
             xSelect<typeof v>(
                 [
@@ -1678,7 +1678,7 @@ const s: Partial<settingItem<SettingPath>> = {
                     { value: "light", name: "浅色" },
                     { value: "dark", name: "深色" },
                 ],
-                "深色模式",
+                "外观模式",
             ),
     },
     "全局.缩放": {
@@ -5480,8 +5480,10 @@ const mainView = view()
 
 mainViewP.add(about());
 
-// 纸墨自绘标题栏（三窗控）；侧边栏 + 主内容区收进一行
-const head = titleBar(t("设置")).style({
+// 纸墨自绘标题栏（三窗控）；侧边栏 + 主内容区收进一行。
+// 嵌进控制中心壳时（URL 带 embedded 标记）壳顶栏已有窗控，这里不再画一份。
+const embedded = new URLSearchParams(location.search).has("embedded");
+const head = titleBar(t("设置"), [], embedded).style({
     borderBottom: "1px solid var(--border-color)",
     flexShrink: 0,
 });

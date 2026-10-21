@@ -96,6 +96,8 @@ type Message = {
     shellSlot: (rect: { x: number; y: number; w: number; h: number }) => void;
     /** 渲染→主：控制中心切了栏目，主进程管理子视图显隐 */
     shellSection: (name: ShellSection) => void;
+    /** 刷新已存在的设置子视图，让控件重新读取 store（如右上角切了外观） */
+    shellRefreshSetting: () => void;
     /** 主→渲染：请求控制中心切栏目（如 appAction 的「设置」） */
     shellGo: (name: ShellSection) => void;
     windowTop: (ignore: boolean) => void;
@@ -385,6 +387,7 @@ function isKnownKey(key: unknown): key is keyof Message {
         case "selectPath":
         case "setAutoStart":
         case "shellGo":
+        case "shellRefreshSetting":
         case "shellSection":
         case "shellSlot":
         case "superPhotoEditorInit":

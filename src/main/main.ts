@@ -2038,6 +2038,19 @@ function clipHistoryPresetBounds() {
     };
 }
 
+/** 尺寸上限：不得超过所在显示器的工作区（小屏上不能开到屏幕外）。建窗前没有 bounds，按光标所在显示器算 */
+function fitSizeToWorkArea(w: number, h: number, bounds?: Electron.Rectangle) {
+    const area = (
+        bounds
+            ? screen.getDisplayMatching(bounds)
+            : screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+    ).workArea;
+    return {
+        width: Math.min(w, area.width),
+        height: Math.min(h, area.height),
+    };
+}
+
 /**
  * 唤出面板时施加尺寸档位。
  * 「默认」档不做任何事，除非窗口还停在百分比档的尺寸上——那时要把它恢复成记住的尺寸。
@@ -2057,11 +2070,12 @@ function applyClipHistorySize(win: BrowserWindow) {
     }
     const [w, h] = store.get("剪贴板历史.窗口大小");
     const b = win.getBounds();
+    const fit = fitSizeToWorkArea(w, h, b);
     if (
-        Math.abs(b.width - w) >= WIN_SIZE_EPS ||
-        Math.abs(b.height - h) >= WIN_SIZE_EPS
+        Math.abs(b.width - fit.width) >= WIN_SIZE_EPS ||
+        Math.abs(b.height - fit.height) >= WIN_SIZE_EPS
     )
-        win.setSize(w, h);
+        win.setSize(fit.width, fit.height);
 }
 
 /**
@@ -2073,7 +2087,8 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
     if (clipHistoryWindow && !clipHistoryWindow.isDestroyed()) {
         return clipHistoryWindow;
     }
-    const [w, h] = store.get("剪贴板历史.窗口大小");
+    const [w0, h0] = store.get("剪贴板历史.窗口大小");
+    const { width: w, height: h } = fitSizeToWorkArea(w0, h0);
     const [sx, sy] = store.get("剪贴板历史.窗口位置");
     // [-1,-1] 是「还没记录过位置」的哨兵（defaultSetting 的初值），不是「左上角」。
     // 不排掉它的话，首次启动面板会贴在屏幕左上角而不是系统默认位置。
@@ -2125,7 +2140,14 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
         if (store.get("剪贴板历史.窗口尺寸") === "默认") {
             const b = win.getNormalBounds();
             const size: [number, number] = [b.width, b.height];
-            if (sizeChanged(size, store.get("剪贴板历史.窗口大小")))
+            const [w, h] = store.get("剪贴板历史.窗口大小");
+            // 小屏上收缩出来的临时尺寸不是用户要的，别写回去盖掉记住的大尺寸
+            const fit = fitSizeToWorkArea(w, h, b);
+            const clamped = fit.width !== w || fit.height !== h;
+            const atFit =
+                Math.abs(b.width - fit.width) < WIN_SIZE_EPS &&
+                Math.abs(b.height - fit.height) < WIN_SIZE_EPS;
+            if (!(clamped && atFit) && sizeChanged(size, [w, h]))
                 store.set("剪贴板历史.窗口大小", size);
             const at: [number, number] = [b.x, b.y];
             if (sizeChanged(at, store.get("剪贴板历史.窗口位置")))
@@ -2684,6 +2706,11 @@ mainOn("shellSlot", ([rect], e) => {
     shellSetBounds(win);
 });
 
+mainOn("shellRefreshSetting", () => {
+    const view = shellViews.get("setting");
+    if (view && !view.webContents.isDestroyed()) view.webContents.reload();
+});
+
 mainOn("shellSection", ([name], e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     if (!win) return;
@@ -2698,10 +2725,15 @@ mainOn("shellSection", ([name], e) => {
                 : name === "aiVision"
                   ? "aiVision.html"
                   : "setting.html";
+        // 设置页要 require(electron/node:*)，配置跟独立设置窗口的 baseWinConfig 对齐
         const v = new WebContentsView({
             webPreferences:
                 name === "setting"
-                    ? {}
+                    ? {
+                          nodeIntegration: true,
+                          contextIsolation: false,
+                          sandbox: false,
+                      }
                     : {
                           nodeIntegration: true,
                           contextIsolation: false,
@@ -2710,7 +2742,15 @@ mainOn("shellSection", ([name], e) => {
         });
         shellViews.set(name, v);
         win.contentView.addChildView(v);
-        rendererPath2(v.webContents, file, {});
+        rendererPath2(
+            v.webContents,
+            file,
+            // 嵌进壳里的设置页不再自带窗控，靠这个标记区分独立窗口形态
+            name === "setting" ? { query: { embedded: "1" } } : {},
+        );
+        v.webContents.on("did-finish-load", () => {
+            v.webContents.setZoomFactor(store.get("全局.缩放") || 1.0);
+        });
         v.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
         v.webContents.on("will-navigate", (ev) => ev.preventDefault());
         shellSetBounds(win);
@@ -3169,7 +3209,7 @@ const defaultSetting: setting = {
         保留天数: 7,
         暂停: false,
         已提示: false,
-        窗口大小: [420, 640],
+        窗口大小: [1100, 720],
         /** 面板窗口上次的坐标；[-1, -1] 表示还没记录过，用系统默认位置 */
         窗口位置: [-1, -1],
         /** 唤出面板时的尺寸档位；「默认」= 沿用窗口大小记住的尺寸 */
@@ -3302,6 +3342,7 @@ function matchBestLan() {
 // 增加设置项后，防止undefined
 function fixSettingTree() {
     paperInkThemeTrans();
+    clipHistoryWinSizeTrans();
     if (store.get("设置版本") === app.getVersion() && !dev) return;
     versionTrans();
     store.set("设置版本", app.getVersion());
@@ -3332,6 +3373,20 @@ function paperInkThemeTrans() {
         : theme.dark;
     if (light !== theme.light || dark !== theme.dark) {
         store.set("全局.主题", { light, dark });
+    }
+}
+
+/**
+ * 控制中心窗口从旧面板（420 × 640）升级成软件壳后，存着旧默认尺寸的配置
+ * 要换成新默认。用户手动调过（存储值不是 420 × 640）的一律不动。
+ */
+function clipHistoryWinSizeTrans() {
+    const size = store.get("剪贴板历史.窗口大小");
+    if (size[0] === 420 && size[1] === 640) {
+        store.set("剪贴板历史.窗口大小", [
+            defaultSetting.剪贴板历史.窗口大小[0],
+            defaultSetting.剪贴板历史.窗口大小[1],
+        ]);
     }
 }
 

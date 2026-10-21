@@ -460,6 +460,7 @@ export default class ClipboardHistory {
      * 内容变了就必须重算 hash，否则去重与「复制回剪贴板」的回声抑制都会对不上；
      * 新内容若与另一条记录撞车，则合并掉另一条。内容被清空时拒绝保存，
      * 免得留下一条没有内容的记录。
+     * 保存成功刷新 time，记录升到所在组（固定/非固定）最前，同「回收站恢复」。
      */
     editText(id: string, text: string): boolean {
         const item = this.items.find((i) => i.id === id);
@@ -467,6 +468,7 @@ export default class ClipboardHistory {
         if (!text.trim() || text === item.text) return false;
         item.text = text;
         this.rehash(item, hashOf(text));
+        item.time = Date.now();
         this.save();
         this.emit();
         return true;
@@ -482,6 +484,7 @@ export default class ClipboardHistory {
             return false;
         item.files = list;
         this.rehash(item, hashOf(joined));
+        item.time = Date.now();
         this.save();
         this.emit();
         return true;
