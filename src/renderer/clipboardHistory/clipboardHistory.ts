@@ -899,17 +899,18 @@ function rowEl(item: ClipItem) {
     );
 
     const actionKey = item.type === "image" ? "view" : "copy";
+    const acts = view("x").class("ch-row-acts");
     if (!trash) {
-        const action = button(icon(item.type === "image" ? "eye" : "copy"))
-            .class("ch-row-act")
-            .data({ "row-act": actionKey, id: item.id })
-            .attr({
-                title: t(item.type === "image" ? "放大查看" : "复制"),
-            });
-        row.add([mainBtn, action]);
-    } else {
-        row.add(mainBtn);
+        acts.add(
+            button(icon(item.type === "image" ? "eye" : "copy"))
+                .class("ch-row-act")
+                .data({ "row-act": actionKey, id: item.id })
+                .attr({
+                    title: t(item.type === "image" ? "放大查看" : "复制"),
+                }),
+        );
     }
+    row.add([mainBtn, acts]);
     return row;
 }
 

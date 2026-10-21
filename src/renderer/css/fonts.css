@@ -25,3 +25,17 @@
     font-display: swap;
     src: url("./fonts/Fraunces.subset.woff2") format("woff2-variations");
 }
+
+/* 得意黑子集的码位取自思源黑子集，正文能显示的字展示层一定也能显示，
+ * 因此新增文案不需要重切字体。缺的 159 码位全是数学符号与制表符。 */
+@font-face {
+    font-family: "Smiley Sans";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("./fonts/SmileySans-Oblique.subset.woff2") format("woff2");
+}
+
+:root {
+    --display-font: "Smiley Sans", var(--main-font);
+}
