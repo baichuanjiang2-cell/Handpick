@@ -739,7 +739,7 @@ process.on("unhandledRejection", (e) => {
 
 app.whenReady().then(() => {
     console.log(
-        `eSearch ${app.getVersion()} 启动\n项目地址：https://github.com/xushengfeng/eSearch`,
+        `eSearch ${app.getVersion()} 启动\n项目地址：https://github.com/baichuanjiang2-cell/eSearch-paste`,
     );
 
     crashReporter.start({ uploadToServer: false });
@@ -1004,7 +1004,7 @@ function feedbackUrl(op?: {
     more?: string;
 }) {
     const url = new URL(
-        "https://github.com/xushengfeng/eSearch/issues/new?assignees=&labels=bug&projects=&template=bug_report.yaml",
+        "https://github.com/baichuanjiang2-cell/eSearch-paste/issues/new?assignees=&labels=bug&projects=&template=bug_report.yaml",
     );
     url.searchParams.append("title", op?.title || "...存在...的错误");
     url.searchParams.append("main", op?.main || "");
@@ -1024,7 +1024,7 @@ function feedbackUrl2(op?: {
     main?: string;
 }) {
     const url = new URL(
-        "https://github.com/xushengfeng/eSearch/issues/new?template=feature_request.yaml&labels=新需求",
+        "https://github.com/baichuanjiang2-cell/eSearch-paste/issues/new?template=feature_request.yaml&labels=新需求",
     );
     if (op?.title) url.searchParams.append("title", op.title);
     url.searchParams.append("main", op?.main || "");
@@ -2335,7 +2335,7 @@ async function createSettingWindow() {
 
 async function createHelpWindow() {
     shell.openExternal(
-        `https://github.com/xushengfeng/eSearch/blob/${app.getVersion()}/docs/use/readme.md`,
+        "https://github.com/baichuanjiang2-cell/eSearch-paste/blob/master/docs/use/readme.md",
     );
 }
 
@@ -3488,10 +3488,17 @@ function githubUrl(_path: string, _type: GithubUrlType | "auto" = "auto") {
 
 mainOn("githubUrl", ([p, t]) => githubUrl(p, t));
 
+/** 本分支的 release tag 形如 `v15.7.0-paste`，比较与忽略键只用其中的数字段（ADR 0013） */
+function releaseVersion(tag: string) {
+    return tag.replace(/^v/, "").match(/^\d+(?:\.\d+)*/)?.[0] ?? tag;
+}
+
 function checkUpdate(s手动检查?: boolean) {
     const version = store.get("设置版本");
     const m = store.get("更新.模式");
-    fetch("https://api.github.com/repos/xushengfeng/eSearch/releases")
+    fetch(
+        "https://api.github.com/repos/baichuanjiang2-cell/eSearch-paste/releases",
+    )
         .then((v) => v.json())
         .then((re) => {
             const isDev =
@@ -3503,24 +3510,24 @@ function checkUpdate(s手动检查?: boolean) {
                 isDev ? true : !r.draft && !r.prerelease,
             );
             let update = false;
-            const firstName = first.name;
+            const firstVersion = releaseVersion(first.tag_name);
             if (m === "dev") {
-                if (firstName !== version) update = true;
+                if (firstVersion !== version) update = true;
             } else if (m === "小版本" || s手动检查) {
-                if (versionCompare(firstName, version) > 0) update = true;
+                if (versionCompare(firstVersion, version) > 0) update = true;
             } else {
                 if (
                     versionCompare(
-                        firstName.split(".").at(0)!,
+                        firstVersion.split(".").at(0)!,
                         version.split(".").at(0)!,
                     ) > 0
                 )
                     update = true;
             }
-            if (store.get("更新.忽略版本") !== firstName)
+            if (store.get("更新.忽略版本") !== firstVersion)
                 if (update) {
                     showVersion({
-                        v: first.name,
+                        v: firstVersion,
                         url: first.html_url,
                     });
                 } else if (s手动检查) {
@@ -3535,7 +3542,7 @@ function checkUpdate(s手动检查?: boolean) {
 function showVersion(arg?: { v: string; url: string } | "err") {
     let title = "";
     let b = "";
-    let url = "https://github.com/xushengfeng/eSearch/releases";
+    let url = "https://github.com/baichuanjiang2-cell/eSearch-paste/releases";
     if (arg) {
         if (arg === "err") {
             title = t("无法检查更新");

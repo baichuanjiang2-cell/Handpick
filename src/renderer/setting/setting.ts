@@ -4199,7 +4199,7 @@ function translatorD(
 
 function transSaveHelp() {
     return a(
-        `https://github.com/xushengfeng/eSearch/blob/${packageJson.version}/docs/use/translate.md#生词本`,
+        "https://github.com/xushengfeng/eSearch/blob/master/docs/use/translate.md#生词本",
     ).add("教程帮助");
 }
 
@@ -5106,6 +5106,11 @@ function githubUrl(_path: string, _type: GithubUrlType | "auto" = "auto") {
     return renderSendSync("githubUrl", [_path, _type]);
 }
 
+/** 本分支的 release tag 形如 `v15.7.0-paste`，版本比较与忽略键只用其中的数字段（ADR 0013） */
+function releaseVersion(tag: string) {
+    return tag.replace(/^v/, "").match(/^\d+(?:\.\d+)*/)?.[0] ?? tag;
+}
+
 function isDarkMode() {
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
@@ -5183,16 +5188,23 @@ function about() {
         .attr({ title: "点击检查更新" })
         .class(Class.mono, Class.click)
         .on("click", () => {
-            fetch(githubUrl("repos/xushengfeng/eSearch/releases", "api"), {
-                method: "GET",
-                redirect: "follow",
-            })
+            fetch(
+                githubUrl(
+                    "repos/baichuanjiang2-cell/eSearch-paste/releases",
+                    "api",
+                ),
+                {
+                    method: "GET",
+                    redirect: "follow",
+                },
+            )
                 .then((response) => response.json())
                 .then((re) => {
                     console.log(re);
                     const l: {
                         html_url: string;
                         name: string;
+                        tag_name: string;
                         body: string;
                         assets: {
                             browser_download_url: string;
@@ -5250,14 +5262,15 @@ function about() {
                         ]);
                         update.add(div);
 
-                        if (r.name === packageJson.version) {
+                        const rv = releaseVersion(r.tag_name);
+                        if (rv === packageJson.version) {
                             tags.add(txt("当前版本"));
                             break;
                         }
                         if (i === 0) {
                             tags.add(txt("最新版本"));
                         }
-                        const baseName = `eSearch-${r.name}-${process.platform}-${process.arch}`;
+                        const baseName = `esearch_paste-${rv}-${process.platform}-${process.arch}`;
                         const assets = r.assets.filter((i) =>
                             i.name.startsWith(baseName),
                         );
@@ -5276,7 +5289,7 @@ function about() {
                         );
                         tags.add(
                             button("忽略此版本").on("click", () => {
-                                setSet("更新.忽略版本", r.name);
+                                setSet("更新.忽略版本", rv);
                                 reRenderSetting("更新.忽略版本");
                             }),
                         );

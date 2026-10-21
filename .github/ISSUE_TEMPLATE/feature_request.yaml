@@ -8,8 +8,8 @@ body:
     attributes:
       value: |
         一个issue最好只描述一个问题或想法，如果有很多（特别是问题），最好分成几个issue，便于搜索。
-        在提交新问题之前，请在[GitHub issues](https://github.com/xushengfeng/eSearch/issues?q=is%3Aissue)中搜索，避免重复提交。
-        看看设置或[文档](https://github.com/xushengfeng/eSearch/blob/master/docs/use/start.md)，是不是已经有了。
+        在提交新问题之前，请在[GitHub issues](https://github.com/baichuanjiang2-cell/eSearch-paste/issues?q=is%3Aissue)中搜索，避免重复提交。
+        看看设置或[文档](https://github.com/baichuanjiang2-cell/eSearch-paste/blob/master/docs/use/start.md)，是不是已经有了。
   - type: textarea
     attributes:
       label: 描述 Description
