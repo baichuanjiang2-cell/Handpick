@@ -1606,16 +1606,25 @@ const s: Partial<settingItem<SettingPath>> = {
             const el = xGroup("y")
                 .class(blockSetting)
                 .add([
-                    xGroup("y").add([
-                        view().add(["强调色", xGroup().add([emL, emD])]),
-                        view().add(["透明背景", xGroup().add([brL, brD])]),
-                        view().add(["普通背景", xGroup().add([bL, bD])]),
-                        view().add(["文字和图标颜色", xGroup().add([fL, fD])]),
-                        view().add([
-                            "强调色中的内容颜色",
-                            xGroup().add([fEL, fED]),
+                    view()
+                        .class("st-theme-inner")
+                        .add([
+                            view().add("强调色"),
+                            emL,
+                            emD,
+                            view().add("透明背景"),
+                            brL,
+                            brD,
+                            view().add("普通背景"),
+                            bL,
+                            bD,
+                            view().add("文字和图标颜色"),
+                            fL,
+                            fD,
+                            view().add("强调色中的内容颜色"),
+                            fEL,
+                            fED,
                         ]),
-                    ]),
                     themeSelect,
                 ])
                 .bindGet(() => {
@@ -3054,14 +3063,23 @@ function renderSetting(settingPath: KeyPath) {
             });
         }
     });
-    const pel = view("x", "wrap")
-        .style({ justifyContent: "space-between" })
-        .class(Class.gap)
+    const hotkeyIcon = el.el.dataset.stIcon;
+    el.class("st-ctl");
+    const pel = view()
+        .class("st-row")
+        .class(el.el.classList.contains(blockSetting) ? "st-row--wide" : "")
         .data({ name: settingPath })
         .add([
             view().add([
-                p(setting.name, true).style({ fontSize: "1.1em" }),
-                setting.desc ? comment(setting.desc) : "",
+                view("x")
+                    .class("st-name-line")
+                    .add([
+                        p(setting.name, true).class("st-name"),
+                        ...(hotkeyIcon
+                            ? [view().add(iconEl(hotkeyIcon as IconType))]
+                            : []),
+                    ]),
+                setting.desc ? comment(setting.desc).class("st-desc") : "",
             ]),
             el,
         ]);
@@ -3126,10 +3144,10 @@ function reRenderSetting(settingPath: KeyPath) {
 }
 
 function renderSettingList(l: string[]) {
-    mainView.clear();
+    pageView.clear();
     for (const i of l) {
         const title = getTitles.get(i);
-        mainView.add(
+        pageView.add(
             view().add([
                 txt("", true)
                     .sv(
@@ -5031,9 +5049,10 @@ function unzip(b: Buffer, targetDir: string) {
 function hotkeyP(icon: IconType | "" = "") {
     const h = hotkey();
     const el = xGroup()
-        .add([icon ? view().add(iconEl(icon)) : "", h])
+        .add([h])
         .bindGet(() => h.gv)
         .bindSet((v: string) => h.sv(v));
+    if (icon) el.el.dataset.stIcon = icon;
     h.on("input", () => el.el.dispatchEvent(new CustomEvent("input")));
     return el;
 }
@@ -5044,9 +5063,10 @@ function hotkeyX(
     const h = hotkey();
     let applied = h.gv;
     const el = xGroup()
-        .add([icon ? view().add(iconEl(icon)) : "", h])
+        .add([h])
         .bindGet(() => h.gv)
         .bindSet((v: string) => h.sv(v));
+    if (icon) el.el.dataset.stIcon = icon;
     h.on("input", () => {
         const next = h.gv;
         const arg =
@@ -5095,25 +5115,25 @@ async function showPage(page: (typeof main)[0] | undefined) {
         console.warn("Page not found");
         return;
     }
-    mainView.clear();
+    pageView.clear();
     mainViewP.el.scrollTop = 0;
-    mainView.add(ele("h1").add(noI18n(page.pageName)));
-    if (page.desc) mainView.add(comment(page.desc));
+    pageView.add(ele("h1").add(noI18n(page.pageName)));
+    if (page.desc) pageView.add(comment(page.desc));
     if (page.banner) {
         const b = page.banner();
-        if (b) mainView.add(b);
+        if (b) pageView.add(b);
     }
     if (page.settings) {
         for (const setting of page.settings) {
-            mainView.add(renderSetting(setting));
+            pageView.add(renderSetting(setting));
         }
     }
     if (page.items) {
         for (const item of page.items) {
-            mainView.add(ele("h2").add(noI18n(item.title)));
-            if (item.desc) mainView.add(comment(item.desc));
+            pageView.add(ele("h2").add(noI18n(item.title)));
+            if (item.desc) pageView.add(comment(item.desc));
             for (const setting of item.settings) {
-                mainView.add(renderSetting(setting));
+                pageView.add(renderSetting(setting));
             }
             // @ts-ignore
             await scheduler.yield();
@@ -5122,7 +5142,7 @@ async function showPage(page: (typeof main)[0] | undefined) {
     if (page.isMemo) {
         const m = getSettingMem();
         for (const setting of m) {
-            mainView.add(renderSetting(setting));
+            pageView.add(renderSetting(setting));
         }
     }
 }
@@ -5135,7 +5155,7 @@ window.CSS.registerProperty({
 });
 
 function about() {
-    const el = view("y").style({ alignItems: "center", margin: "120px 0" });
+    const el = view("y").class("st-about");
     const logoEl = image(logo, noI18n("logo"))
         .style({
             width: "200px",
@@ -5267,7 +5287,7 @@ function about() {
     const update = view("y").style({ gap: "16px" });
     const desc = p(packageJson.description);
 
-    const infoEl = view("y").style({ alignItems: "center" });
+    const infoEl = view("y").style({ gap: "4px" });
 
     infoEl.add([
         view().add([
@@ -5312,7 +5332,15 @@ function about() {
         ),
     ]);
 
-    return el.add([logoEl, nameEl, version, update, desc, infoEl]);
+    return el.add([
+        view("y")
+            .class("st-about-head")
+            .style({ gap: "8px" })
+            .add([logoEl, nameEl, version]),
+        update,
+        desc,
+        infoEl,
+    ]);
 }
 
 setTranslate((text) => t(text));
@@ -5348,7 +5376,7 @@ pack(document.body).style({
 setTitle(t("设置"));
 
 const baseWidth = "300px";
-const baseWidth2 = "150px";
+const baseWidth2 = "160px";
 
 const blockSetting = addClass(
     {
@@ -5361,6 +5389,7 @@ addStyle({
     h1: {
         fontSize: "3rem",
         fontWeight: 100,
+        fontFamily: "var(--display-font)",
     },
     h2: {
         fontSize: "1.8rem",
@@ -5369,7 +5398,8 @@ addStyle({
         background: "var(--bg)",
         zIndex: 1,
         fontWeight: 100,
-        marginBlockStart: "28px",
+        fontFamily: "var(--display-font)",
+        marginBlockStart: "32px",
     },
     a: {
         textDecoration: "underline",
@@ -5389,14 +5419,7 @@ addStyle({
 
 const sideBar = view("y")
     .addInto()
-    .style({
-        padding: cssVar("o-padding"),
-        flexShrink: 0,
-        width: "200px",
-        flex: "1",
-        minHeight: "0",
-        overflowY: "auto",
-    })
+    .class("st-side")
     .class(
         addClass(
             {},
@@ -5415,10 +5438,7 @@ const searchBar = view("x").style({
 });
 const searchI = input()
     .attr({ placeholder: t("搜索设置") })
-    .style({
-        width: "100%",
-        maxWidth: `calc(680px - ${cssVar("o-padding")} * 2)`,
-    })
+    .class("st-search")
     .addInto(searchBar)
     .on("input", () => {
         if (!searchI.gv) {
@@ -5434,7 +5454,7 @@ const searchI = input()
 
         const l = fuse.search(searchI.gv).map((i) => i.item[0]);
         if (l.length === 0)
-            mainView.clear().add(
+            pageView.clear().add(
                 xGroup("y")
                     .style({
                         alignItems: "center",
@@ -5458,32 +5478,19 @@ const mainViewP = view().addInto().style({
     minHeight: "0",
     flexGrow: "1",
 });
-mainViewP.add(searchBar);
 const mainView = view()
     .addInto(mainViewP)
-    .style({
-        maxWidth: "680px",
-        margin: "auto",
-        padding: cssVar("o-padding"),
-        minHeight: "100vh",
-    })
-    .class(
-        addClass(
-            {},
-            {
-                "&>div": {
-                    marginBlock: "22px",
-                },
-            },
-        ),
-    );
-
-mainViewP.add(about());
+    .class("st-main")
+    .style({ minHeight: "100vh" });
+searchBar.addInto(mainView);
+const pageView = view().class("st-page").addInto(mainView);
+mainView.add(about());
 
 // 纸墨自绘标题栏（三窗控）；侧边栏 + 主内容区收进一行。
 // 嵌进控制中心壳时（URL 带 embedded 标记）壳顶栏已有窗控，这里不再画一份。
 const embedded = new URLSearchParams(location.search).has("embedded");
 const head = titleBar(t("设置"), [], embedded).style({
+    gap: "8px",
     borderBottom: "1px solid var(--border-color)",
     flexShrink: 0,
 });
@@ -5516,9 +5523,9 @@ function showContextMenu(e: MouseEvent) {
 }
 
 for (const [i, page] of main.entries()) {
-    const sideEl = view().add(
-        sideBarG.new(String(i), txt(page.pageName, true)),
-    );
+    const sideEl = view()
+        .class("st-nav-item")
+        .add(sideBarG.new(String(i), txt(page.pageName, true)));
     sideBar.add(sideEl);
 }
 

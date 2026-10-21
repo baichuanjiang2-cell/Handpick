@@ -2315,7 +2315,7 @@ async function createSettingWindow() {
     }
     settingWindow = new BrowserWindow({
         minWidth: 600,
-        width: 900,
+        width: 1060,
         height: 700,
         ...baseWinConfig(),
         // 纸墨自绘标题栏，去掉系统边框

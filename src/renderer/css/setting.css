@@ -1,0 +1,117 @@
+/* 设置页版式：展示层字体 + 两列对齐网格。
+ * 间距只用 4/8/12/16/24/32/40 刻度；outline-offset:-1px 这类负向光学偏移除外。
+ * 展示字体 @font-face 与 --display-font 在共用的 fonts.css 里。 */
+
+:root {
+    --st-content: 820px;
+    --st-control: 360px;
+    --win-ctl-size: 34px;
+    --win-ctl-font: 17px;
+    --win-ctl-gap: 4px;
+}
+
+.st-side {
+    flex: none;
+    width: 200px;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--o-padding);
+}
+
+.st-nav-item {
+    font-family: var(--display-font);
+}
+
+.st-main {
+    max-width: var(--st-content);
+    margin: auto;
+    padding: var(--o-padding);
+    container: st-main / inline-size;
+}
+
+.st-page > div {
+    margin-block: 24px;
+}
+
+/* 一行设置项：左名称右控件，控件列定宽使所有控件左边缘落在同一条竖线上 */
+.st-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--st-control);
+    gap: 8px 16px;
+    align-items: start;
+}
+
+.st-ctl {
+    min-width: 0;
+    justify-self: start;
+}
+
+.st-name-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.st-name {
+    margin: 0;
+    font-family: var(--display-font);
+    font-size: 1.1em;
+}
+
+.st-desc {
+    margin: 4px 0 0;
+}
+
+/* 宽控件行：名称独占一行，控件从名称左边缘起、铺满整列 */
+.st-row--wide {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.st-row--wide .st-ctl {
+    justify-self: stretch;
+    width: 100%;
+}
+
+/* 主题编辑器内三列对齐：标签 + 浅色值 + 深色值 */
+.st-theme-inner {
+    display: grid;
+    grid-template-columns: minmax(5em, 160px) 160px 160px;
+    gap: 8px;
+    align-items: center;
+}
+
+.st-theme-inner > * {
+    min-width: 0;
+}
+
+/* 关于页收进正文列，正文左对齐，标志与名称在列内居中 */
+.st-about {
+    margin-block: 40px;
+}
+
+.st-about-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* :where 让按钮的展示字体不压过 .mono 等等宽样式 */
+:where(.st-main, .st-side) button {
+    font-family: var(--display-font);
+}
+
+.st-search {
+    width: 100%;
+    max-width: calc(var(--st-content) - var(--o-padding) * 2);
+}
+
+.st-search::placeholder {
+    font-family: var(--display-font);
+}
+
+/* 正文列窄到 640px 以下：两列改上下堆叠 */
+@container st-main (max-width: 640px) {
+    .st-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
