@@ -4,7 +4,7 @@ const fs = require("node:fs") as typeof import("fs");
 import { initFastText } from "@xushengfeng/fasttext_wasm";
 import { writeText } from "../lib/clipboard";
 
-import { renderSend } from "../../../lib/ipc";
+import { renderOn, renderSend } from "../../../lib/ipc";
 import store from "../../../lib/store/renderStore";
 
 import {
@@ -204,7 +204,7 @@ function translate(_text: string) {
     const cl = c常用语言.filter((i) => i !== fromLan && i !== toLan);
     store.set(
         "翻译.常用语言",
-        [toLan, fromLan, ...cl].filter((i) => i !== "auto").slice(0, 5),
+        [toLan, fromLan, ...cl].filter((i) => i && i !== "auto").slice(0, 5),
     );
 
     if (fyq.length === 0) {
@@ -286,47 +286,80 @@ const inputText = decodeURIComponent(
     new URLSearchParams(location.search).get("text") || "",
 ).trim();
 
-const fyq = store.get("翻译.翻译器");
-const fanyiqi = new Map(
+let fyq = store.get("翻译.翻译器");
+let fanyiqi = new Map(
     fyq.map((f) => {
         const e = getTranslators(store, f);
         return [f.id, e];
     }),
 );
 
-const showCang = store.get("翻译.收藏");
+let showCang = store.get("翻译.收藏");
+let c常用语言 = store.get("翻译.常用语言").filter(Boolean);
 
-const allFromLan = Array.from(
-    new Set(
-        fyq.flatMap(
-            (f) => xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]?.lan,
+function fillLanSelects() {
+    const from = lansFrom.gv;
+    const to = lansTo.gv;
+    const allFromLan = Array.from(
+        new Set(
+            fyq.flatMap(
+                (f) =>
+                    xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]?.lan,
+            ),
         ),
-    ),
-);
-const allToLan = Array.from(
-    new Set(
-        fyq.flatMap(
-            (f) =>
-                xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]?.targetLan,
+    );
+    const allToLan = Array.from(
+        new Set(
+            fyq.flatMap(
+                (f) =>
+                    xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]
+                        ?.targetLan,
+            ),
         ),
-    ),
-);
+    );
 
-console.log("allFromLan", allFromLan);
-console.log("allToLan", allToLan);
+    console.log("allFromLan", allFromLan);
+    console.log("allToLan", allToLan);
 
-const c常用语言 = store.get("翻译.常用语言");
+    lansFrom.clear();
+    lansTo.clear();
+    lansFrom.add(
+        pick2First(getLansName(allFromLan), ["auto", ...c常用语言]).map((v) =>
+            ele("option").add(txt(v.text)).attr({ value: v.lan }),
+        ),
+    );
+    lansTo.add(
+        pick2First(getLansName(allToLan), c常用语言).map((v) =>
+            ele("option").add(txt(v.text)).attr({ value: v.lan }),
+        ),
+    );
+    lansFrom.sv(from || "auto");
+    lansTo.sv(to || store.get("语言.语言"));
+}
 
-lansFrom.add(
-    pick2First(getLansName(allFromLan), ["auto", ...c常用语言]).map((v) =>
-        ele("option").add(txt(v.text)).attr({ value: v.lan }),
-    ),
-);
-lansTo.add(
-    pick2First(getLansName(allToLan), c常用语言).map((v) =>
-        ele("option").add(txt(v.text)).attr({ value: v.lan }),
-    ),
-);
+fillLanSelects();
+
+/** 控制中心子视图常驻，切回翻译栏目时重读设置里可能刚改过的翻译器 */
+function refreshTranslators() {
+    fyq = store.get("翻译.翻译器");
+    fanyiqi = new Map(
+        fyq.map((f) => {
+            const e = getTranslators(store, f);
+            return [f.id, e];
+        }),
+    );
+    showCang = store.get("翻译.收藏");
+    c常用语言 = store.get("翻译.常用语言").filter(Boolean);
+    fillLanSelects();
+    if (input.el.value.trim()) {
+        translate(input.el.value);
+        return;
+    }
+    results.clear();
+    if (fyq.length === 0) results.add(noTranslatorTip());
+}
+
+renderOn("translateRefresh", refreshTranslators);
 
 input.el.value = inputText;
 

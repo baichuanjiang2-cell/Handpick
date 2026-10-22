@@ -98,6 +98,8 @@ type Message = {
     shellSection: (name: ShellSection) => void;
     /** 刷新已存在的设置子视图，让控件重新读取 store（如右上角切了外观） */
     shellRefreshSetting: () => void;
+    /** 主→渲染：切回翻译栏目时，让翻译子视图重读翻译器配置 */
+    translateRefresh: () => void;
     /** 主→渲染：请求控制中心切栏目（如 appAction 的「设置」） */
     shellGo: (name: ShellSection) => void;
     windowTop: (ignore: boolean) => void;
@@ -396,6 +398,7 @@ function isKnownKey(key: unknown): key is keyof Message {
         case "tabView":
         case "tabViewSize":
         case "theme":
+        case "translateRefresh":
         case "translatorInit":
         case "userDataPath":
         case "viewEvent":

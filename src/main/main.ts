@@ -2754,6 +2754,11 @@ mainOn("shellSection", ([name], e) => {
         v.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
         v.webContents.on("will-navigate", (ev) => ev.preventDefault());
         shellSetBounds(win);
+    } else if (name === "translate") {
+        // 子视图常驻不重建，切回来时让它重读翻译器（设置里可能刚加过）
+        const v = shellViews.get("translate");
+        if (v && !v.webContents.isDestroyed())
+            mainSend(v.webContents, "translateRefresh", []);
     }
 });
 mainOn("windowTop", ([top], e) => {
