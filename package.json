@@ -1,6 +1,6 @@
 {
     "name": "eSearch",
-    "version": "15.7.2",
+    "version": "15.7.3",
     "description": "识屏 · 录屏 · 剪贴板历史 · 翻译",
     "main": "./out/main/main.js",
     "scripts": {
