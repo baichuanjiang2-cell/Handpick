@@ -1,9 +1,9 @@
 import {
+    type ElType,
     addClass,
     button,
     check,
     dynamicSelect,
-    type ElType,
     ele,
     frame,
     image,
@@ -17,6 +17,8 @@ import {
     view,
 } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
+import { iconButton as iconBEl, iconEl } from "../lib/ui";
+import { titleBar } from "../lib/ui";
 import {
     Class,
     cssColor,
@@ -26,37 +28,38 @@ import {
     setTitle,
 } from "../root/root";
 
-const { uIOhook, UiohookKey } =
-    require("uiohook-napi") as typeof import("uiohook-napi");
+// biome-ignore format:
+const { uIOhook, UiohookKey } = require("uiohook-napi") as typeof import("uiohook-napi");
 type KeyCode = `${keyof typeof UiohookKey}`;
 const fs = require("node:fs") as typeof import("fs");
 
 import UPNG from "@pdf-lib/upng";
 // @ts-expect-error
-import { applyPalette, GIFEncoder, quantize } from "gifenc";
+import { GIFEncoder, applyPalette, quantize } from "gifenc";
 import {
     AudioBufferSource,
     type AudioCodec,
     BufferTarget,
     EncodedPacket,
     EncodedVideoPacketSource,
-    getFirstEncodableAudioCodec,
     Mp4OutputFormat,
     Output,
     type OutputFormat,
     WebMOutputFormat,
+    getFirstEncodableAudioCodec,
 } from "mediabunny";
-import type { RecordRect } from "../../../lib/ipc";
+
 import { renderOn, renderSend, renderSendSync } from "../../../lib/ipc";
+import type { RecordRect } from "../../../lib/ipc";
 import { t } from "../../../lib/translate/translate";
 import { typedEntries } from "../../../lib/utils";
 import type { IconType } from "../../iconTypes";
 import floydSteinberg from "../lib/dither";
 import xhistory from "../lib/history";
 import {
+    type SrcAudio,
     audioCapture,
     buildTransAudio,
-    type SrcAudio,
     sysAudioId,
 } from "./audio";
 
@@ -829,7 +832,7 @@ function mapKeysOnFrames(chunks: EncodedVideoChunk[], keys: superRecording) {
         return { x, y, w, h };
     }
 
-    let lastK: (typeof newKeys)[0] | undefined;
+    let lastK: (typeof newKeys)[0] | undefined = undefined;
     const nk = newKeys.filter((k) => "mousedown" in k || "mouseup" in k);
     const nk2: (typeof nk)[] = [];
     // 寻找up->down（两个press直接的间隔）>500ms
@@ -2345,7 +2348,9 @@ async function saveImages() {
     console.log("decoded");
 }
 
-async function saveGif(op?: { dither: "floyd-steinberg" | "none" }) {
+async function saveGif(op?: {
+    dither: "floyd-steinberg" | "none";
+}) {
     const exportPath = getSavePath("gif");
     if (!exportPath) return;
 
@@ -2410,7 +2415,7 @@ async function saveGif(op?: { dither: "floyd-steinberg" | "none" }) {
     const gifProgress = progressEl().addInto(transformLogEl);
 
     // 取10帧生成调色板
-    let paletteCanvas: OffscreenCanvas | undefined;
+    let paletteCanvas: OffscreenCanvas | undefined = undefined;
     let top = 0;
     const d = Math.floor(transformCs.length / 10);
     for (const [id] of transformCs.entries()) {
@@ -2618,14 +2623,6 @@ async function saveMp4(op: { codec: "avc" | "vp9" | "av1" }) {
     } else {
         // todo
     }
-}
-
-function iconEl(src: IconType) {
-    return image(getImgUrl(`${src}.svg`), "icon").class("icon");
-}
-
-function iconBEl(src: IconType, title: string) {
-    return button().add(iconEl(src)).attr({ title });
 }
 
 function monoTxt(text?: string) {
@@ -3771,6 +3768,16 @@ pack(document.body).style({
     height: "100vh",
     overflow: "hidden",
 });
+
+// 纸墨自绘标题栏（三窗控）
+titleBar(t("超级录屏"))
+    .style({
+        borderBottom: "1px solid var(--border-color)",
+        flexShrink: "0",
+        position: "relative",
+        zIndex: "100",
+    })
+    .addInto();
 
 (async () => {
     if (testMode) return;

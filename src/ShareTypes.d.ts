@@ -272,6 +272,25 @@ export interface setting {
         复制OCR后提示: boolean;
     };
     主页面大小: [number, number, boolean];
+    剪贴板历史: {
+        开启: boolean;
+        存储目录: string;
+        轮询间隔: number;
+        保留条数: number;
+        保留天数: number;
+        暂停: boolean;
+        /** 是否已向用户提示过「已在记录剪贴板」 */
+        已提示: boolean;
+        /** 控制中心窗口的尺寸 [宽, 高]（建窗时会收缩到显示器工作区内） */
+        窗口大小: [number, number];
+        /** 面板窗口上次的坐标 [x, y]；[-1, -1] 表示尚未记录 */
+        窗口位置: [number, number];
+        /**
+         * 唤出面板时使用的尺寸档位。百分比以屏幕工作区（排除任务栏）为基准；
+         * 「默认」表示沿用 `窗口大小` 记住的尺寸。
+         */
+        窗口尺寸: "默认" | "50%" | "75%" | "100%";
+    };
     时间格式: string;
     硬件加速: boolean;
     更新: {
@@ -479,6 +498,22 @@ type MainWinType = {
     mode?: setting["主页面"]["模式"];
     arg0?: string;
     time?: number;
+};
+
+type ClipItemType = "text" | "image" | "file";
+/** 一条剪贴板历史记录 */
+type ClipItem = {
+    id: string;
+    type: ClipItemType;
+    time: number;
+    pinned: boolean;
+    deleted: boolean;
+    hash: string;
+    text?: string;
+    files?: string[];
+    image?: string;
+    w?: number;
+    h?: number;
 };
 
 type translateWinType = {

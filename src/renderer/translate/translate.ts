@@ -1,26 +1,26 @@
 import xtranslator, { matchFitLan } from "xtranslator";
 import { Class, cssColor, getImgUrl, initStyle } from "../root/root";
-
 const fs = require("node:fs") as typeof import("fs");
-
 import { initFastText } from "@xushengfeng/fasttext_wasm";
+import { writeText } from "../lib/clipboard";
+
+import { renderOn, renderSend } from "../../../lib/ipc";
+import store from "../../../lib/store/renderStore";
+
 import {
     button,
     ele,
     frame,
     image,
-    p,
-    pack,
     pText,
+    pack,
     spacer,
     txt,
     view,
 } from "dkh-ui";
 
-import store from "../../../lib/store/renderStore";
 import { t } from "../../../lib/translate/translate";
 import type { IconType } from "../../iconTypes";
-import { writeText } from "../lib/clipboard";
 import { getTranslators } from "../lib/translate";
 
 initStyle(store);
@@ -29,6 +29,13 @@ document.title = t("翻译");
 
 function iconButton(img: IconType) {
     return button(image(getImgUrl(`${img}.svg`), "icon").class("icon"));
+}
+
+/** 空配置引导：点一下切到控制中心的设置栏目添加翻译器 */
+function noTranslatorTip() {
+    return button(t("请在设置添加翻译器")).on("click", () => {
+        renderSend("appAction", ["settings"]);
+    });
 }
 
 pack(document.body)
@@ -47,7 +54,9 @@ const input = ele("textarea").style({
     "field-sizing": "content",
     "min-height": "4lh",
     maxHeight: "50%",
-    outline: "none",
+    // 纸底和输入区同色就看不出边界，浅一号底 + 细墨线描边
+    backgroundColor: "color-mix(in srgb, var(--font-color) 6%, var(--bg))",
+    outline: "1px solid var(--border-color)",
     transition: "none",
     flexShrink: 0,
 });
@@ -195,11 +204,11 @@ function translate(_text: string) {
     const cl = c常用语言.filter((i) => i !== fromLan && i !== toLan);
     store.set(
         "翻译.常用语言",
-        [toLan, fromLan, ...cl].filter((i) => i !== "auto").slice(0, 5),
+        [toLan, fromLan, ...cl].filter((i) => i && i !== "auto").slice(0, 5),
     );
 
     if (fyq.length === 0) {
-        results.add(p(t("请在设置添加翻译器")));
+        results.add(noTranslatorTip());
     }
 }
 
@@ -263,7 +272,7 @@ function pick2First(list: { text: string; lan: string }[], toPick: string[]) {
 }
 
 function detectLan(text: string) {
-    const fromLan = fasttext.identify(text)?.alpha2 ?? "auto";
+    const fromLan = fasttext?.identify(text)?.alpha2 ?? "auto";
     console.log("检测语言：", fromLan);
 
     const m = matchFitLan(fromLan, c常用语言);
@@ -277,52 +286,98 @@ const inputText = decodeURIComponent(
     new URLSearchParams(location.search).get("text") || "",
 ).trim();
 
-const fyq = store.get("翻译.翻译器");
-const fanyiqi = new Map(
+let fyq = store.get("翻译.翻译器");
+let fanyiqi = new Map(
     fyq.map((f) => {
         const e = getTranslators(store, f);
         return [f.id, e];
     }),
 );
 
-const showCang = store.get("翻译.收藏");
+let showCang = store.get("翻译.收藏");
+let c常用语言 = store.get("翻译.常用语言").filter(Boolean);
 
-const allFromLan = Array.from(
-    new Set(
-        fyq.flatMap(
-            (f) => xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]?.lan,
+function fillLanSelects() {
+    const from = lansFrom.gv;
+    const to = lansTo.gv;
+    const allFromLan = Array.from(
+        new Set(
+            fyq.flatMap(
+                (f) =>
+                    xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]?.lan,
+            ),
         ),
-    ),
-);
-const allToLan = Array.from(
-    new Set(
-        fyq.flatMap(
-            (f) =>
-                xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]?.targetLan,
+    );
+    const allToLan = Array.from(
+        new Set(
+            fyq.flatMap(
+                (f) =>
+                    xtranslator.e[f.type === "llm" ? "chatgpt" : f.type]
+                        ?.targetLan,
+            ),
         ),
-    ),
-);
+    );
 
-console.log("allFromLan", allFromLan);
-console.log("allToLan", allToLan);
+    console.log("allFromLan", allFromLan);
+    console.log("allToLan", allToLan);
 
-const c常用语言 = store.get("翻译.常用语言");
+    lansFrom.clear();
+    lansTo.clear();
+    lansFrom.add(
+        pick2First(getLansName(allFromLan), ["auto", ...c常用语言]).map((v) =>
+            ele("option").add(txt(v.text)).attr({ value: v.lan }),
+        ),
+    );
+    lansTo.add(
+        pick2First(getLansName(allToLan), c常用语言).map((v) =>
+            ele("option").add(txt(v.text)).attr({ value: v.lan }),
+        ),
+    );
+    lansFrom.sv(from || "auto");
+    lansTo.sv(to || store.get("语言.语言"));
+}
 
-lansFrom.add(
-    pick2First(getLansName(allFromLan), ["auto", ...c常用语言]).map((v) =>
-        ele("option").add(txt(v.text)).attr({ value: v.lan }),
-    ),
-);
-lansTo.add(
-    pick2First(getLansName(allToLan), c常用语言).map((v) =>
-        ele("option").add(txt(v.text)).attr({ value: v.lan }),
-    ),
-);
+fillLanSelects();
+
+/** 控制中心子视图常驻，切回翻译栏目时重读设置里可能刚改过的翻译器 */
+function refreshTranslators() {
+    fyq = store.get("翻译.翻译器");
+    fanyiqi = new Map(
+        fyq.map((f) => {
+            const e = getTranslators(store, f);
+            return [f.id, e];
+        }),
+    );
+    showCang = store.get("翻译.收藏");
+    c常用语言 = store.get("翻译.常用语言").filter(Boolean);
+    fillLanSelects();
+    if (input.el.value.trim()) {
+        translate(input.el.value);
+        return;
+    }
+    results.clear();
+    if (fyq.length === 0) results.add(noTranslatorTip());
+}
+
+renderOn("translateRefresh", refreshTranslators);
 
 input.el.value = inputText;
 
-const ft = (await initFastText()).FastText();
-const fasttext = await ft.loadModel();
+/** 语言识别模型要联网下载，加载失败也得能打字翻译，所以不等它，好了再启用识别 */
+let fasttext:
+    | {
+          identify(text: string): { alpha2: string | null } | undefined;
+      }
+    | undefined;
+initFastText()
+    .then((m) => m.FastText().loadModel())
+    .then((model) => {
+        fasttext = model;
+        if (input.el.value.trim()) detectLan(input.el.value);
+    })
+    .catch((err) => {
+        console.error("语言识别模型加载失败", err);
+    });
 
 if (inputText) {
     detectLan(inputText);
@@ -330,6 +385,8 @@ if (inputText) {
 } else {
     lansFrom.sv("auto");
     lansTo.sv(store.get("语言.语言"));
+    // 空配置打开就提示（translate() 在触发时也会补一条）
+    if (fyq.length === 0) results.add(noTranslatorTip());
 }
 
 let composing = false;

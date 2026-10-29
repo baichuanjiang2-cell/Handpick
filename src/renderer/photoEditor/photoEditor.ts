@@ -1,8 +1,8 @@
 import {
+    type ElType,
     addStyle,
     button,
     check,
-    type ElType,
     ele,
     frame,
     image,
@@ -17,16 +17,14 @@ import {
 } from "dkh-ui";
 import store from "../../../lib/store/renderStore";
 import type { setting } from "../../ShareTypes";
+import { titleBar } from "../lib/ui";
 import { Class, cssVar, getImgUrl, initStyle, setTitle } from "../root/root";
-
+// biome-ignore format:
 const { nativeImage } = window.require("electron") as typeof import("electron");
-
 import { writeImage } from "../lib/clipboard";
-
 const { existsSync, writeFileSync } = require("node:fs") as typeof import("fs");
 const { join } = require("node:path") as typeof import("path");
 const ort = require("onnxruntime-node") as typeof import("onnxruntime-node");
-
 import { renderOn, renderSend, renderSendSync } from "../../../lib/ipc";
 import { t } from "../../../lib/translate/translate";
 import type { IconType } from "../../iconTypes";
@@ -58,6 +56,16 @@ function alert(m: string) {
 initStyle(store);
 
 setTranslate(t);
+
+// 纸墨自绘标题栏（三窗控）
+titleBar(t("高级编辑"))
+    .style({
+        borderBottom: "1px solid var(--border-color)",
+        flexShrink: "0",
+        position: "relative",
+        zIndex: "100",
+    })
+    .addInto();
 
 setTitle(t("高级编辑"));
 

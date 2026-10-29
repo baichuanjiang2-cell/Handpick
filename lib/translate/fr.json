@@ -830,5 +830,7 @@
     "21efe7": "Utiliser XDG Desktop Portal",
     "b9c720": "Utiliser XDG Desktop Portal pour les captures sur Linux. Adapté aux environnements Wayland, mais peut être flou avec la mise à l'échelle fractionnaire sur plusieurs écrans.",
     "ef8a00": "Chemin du modèle de détection global",
-    "1194ea": "Chemin du modèle de détection partagé par tous les modèles OCR hors ligne. Laissez vide pour utiliser le modèle par défaut."
+    "1194ea": "Chemin du modèle de détection partagé par tous les modèles OCR hors ligne. Laissez vide pour utiliser le modèle par défaut.",
+    "c6e1e6": "Connaître son écran - Enregistrement - Historique du presse-papiers - Traduction",
+    "3c4e28": "Ce logiciel est une modification de eSearch (xushengfeng)"
 }

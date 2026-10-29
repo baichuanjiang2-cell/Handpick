@@ -9,14 +9,14 @@ body {
 }
 
 :root {
-    --title-bar: calc(env(titlebar-area-height, 24px) - var(--o-padding));
+    --title-bar: 36px;
 }
 
 nav {
     position: absolute;
-    left: calc(env(titlebar-area-x, 0) + var(--o-padding));
+    left: var(--o-padding);
     top: var(--o-padding);
-    width: calc(env(titlebar-area-width, 100%) - var(--o-padding));
+    width: calc(100% - var(--o-padding) * 2);
     height: var(--title-bar);
     gap: var(--space2);
     overflow: hidden;
@@ -131,7 +131,7 @@ body .hover_b {
     border-radius: 0;
 }
 .text > textarea::spelling-error {
-    text-decoration: underline wavy #44f;
+    text-decoration: underline wavy var(--accent-cinnabar);
 }
 .text > textarea::selection {
     background-color: var(--hover-color);
@@ -179,7 +179,7 @@ body .hover_b {
     width: 16px;
 }
 .history_title > button:hover {
-    background-color: #f00;
+    background-color: var(--accent-cinnabar);
 }
 .history_title > button:hover > .icon {
     filter: invert(1);
@@ -231,7 +231,7 @@ body .hover_b {
 }
 
 ::highlight(img-highlight) {
-    background-color: #78a9fd99;
+    background-color: color-mix(in srgb, var(--accent-gold) 55%, transparent);
 }
 
 #find {
@@ -246,7 +246,7 @@ body .hover_b {
     border-radius: 2px;
 }
 .find_h_h {
-    background-color: #00000040;
+    background-color: color-mix(in srgb, var(--font-color) 25%, transparent);
 }
 
 #bottoms {
@@ -274,12 +274,6 @@ body .hover_b {
 
 select {
     field-sizing: content;
-}
-
-@media (prefers-color-scheme: dark) {
-    .find_h_h {
-        background-color: #ffffff40;
-    }
 }
 
 #tabs {

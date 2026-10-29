@@ -2,10 +2,10 @@
 
 import diff_match_patch from "diff-match-patch";
 import {
+    type ElType,
     addClass,
     button,
     dynamicSelect,
-    type ElType,
     ele,
     image,
     input,
@@ -32,15 +32,13 @@ import {
     setTitle,
 } from "../root/root";
 import "diff-match-patch-line-and-word";
-
+// biome-ignore format:
 const { shell, webFrame } = require("electron") as typeof import("electron");
-
 import { readText, writeText } from "../lib/clipboard";
-
+import { iconButton as iconBEl, windowControls } from "../lib/ui";
 const fs = require("node:fs") as typeof import("fs");
 const os = require("node:os") as typeof import("os");
 const path = require("node:path") as typeof import("path");
-
 import type { FSWatcher } from "node:fs";
 import xhistory from "../lib/history";
 
@@ -138,12 +136,6 @@ const tabs = new Map<number, TabItem>();
 
 let focusTabI = 0;
 
-function iconBEl(src: IconType, title: string) {
-    return button(image(getImgUrl(`${src}.svg`), "icon").class("icon")).attr({
-        title: title,
-    });
-}
-
 const nav = ele("nav");
 const navTopSwitch = buttonSwitch(iconBEl("toptop", "窗口置顶"), (s) => {
     renderSend("windowTop", [s]);
@@ -172,7 +164,7 @@ const ziCount = view().style({
     "-webkit-app-region": "no-drag",
     color: cssColor.font.light,
 });
-nav.add([spacer(), ziCount]);
+nav.add([spacer(), ziCount, windowControls()]);
 
 const outMainEl = view()
     .style({
@@ -2142,10 +2134,8 @@ function setConciseMode(m: boolean) {
         outMainEl.el.style.gap = cssVar("o-padding");
     }
     const bSize = {
-        top:
-            // @ts-ignore
-            window.navigator?.windowControlsOverlay.getTitlebarAreaRect()
-                .height || 0,
+        // 子视图从 nav 下边缘开始：nav 是自绘标题栏，不再是系统 titlebar 区
+        top: Math.round(nav.el.getBoundingClientRect().bottom) || 44,
         bottom: 48,
     };
     if (m) {
@@ -2283,7 +2273,10 @@ function getTab(id: number): TabItem {
 
 function closeTab(id: number) {
     renderSend("tabView", [id, "close"]);
-    const beforeIndex = Math.min(liList.indexOf(id), liList.length - 1);
+    const beforeIndex = Math.min(
+        liList.findIndex((i) => i === id),
+        liList.length - 1,
+    );
     liList = liList.filter((i) => i !== id);
     focusTab(liList[beforeIndex] ?? 0);
     tabs.get(id)?.el.remove();

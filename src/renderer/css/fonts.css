@@ -1,0 +1,42 @@
+/* 纸墨编辑部字体：思源黑（正文）、思源宋（标题）、Fraunces（数字）。
+ * 子集文件由常用字裁剪而来（约 2.7MB），缺字由 root.css 里的回落链兜底。
+ * 源字体：Noto CJK（思源黑/宋的 Google 版）与 Fraunces，开源许可随包分发。 */
+
+@font-face {
+    font-family: "Source Han Sans SC";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("./fonts/SourceHanSansSC-Regular.subset.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Source Han Serif SC";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("./fonts/SourceHanSerifSC-SemiBold.subset.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Fraunces";
+    font-style: normal;
+    font-weight: 300 900;
+    font-display: swap;
+    src: url("./fonts/Fraunces.subset.woff2") format("woff2-variations");
+}
+
+/* 得意黑子集 = 思源黑子集码位 ∩ 得意黑本体码位（7391 / 7550）：汉字全在，
+ * 缺的 159 个码位是符号、注音与数学运算符，本体没有这些字形，重切也切不出来。
+ * 缺字由下面的回落链交给思源黑，属设计内行为（口径见 docs/adr/0011）。 */
+@font-face {
+    font-family: "Smiley Sans";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("./fonts/SmileySans-Oblique.subset.woff2") format("woff2");
+}
+
+:root {
+    --display-font: "Smiley Sans", var(--main-font);
+}

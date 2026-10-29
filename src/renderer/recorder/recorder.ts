@@ -8,14 +8,26 @@ import {
     label,
     p,
     txt,
-    view,
 } from "dkh-ui";
-import store from "../../../lib/store/renderStore";
+import { view } from "dkh-ui";
 import { t } from "../../../lib/translate/translate";
+import { iconButton as iconBEl, iconEl } from "../lib/ui";
+import { titleBar } from "../lib/ui";
 /// <reference types="vite/client" />
 import { Class, cssColor, getImgUrl, initStyle, setTitle } from "../root/root";
 
+import store from "../../../lib/store/renderStore";
 initStyle(store);
+
+// 纸墨自绘标题栏（三窗控）
+titleBar(t("录屏"))
+    .style({
+        borderBottom: "1px solid var(--border-color)",
+        flexShrink: "0",
+        position: "relative",
+        zIndex: "100",
+    })
+    .addInto();
 
 setTitle(t("录屏"));
 
@@ -95,16 +107,14 @@ const sysAudioName = "00";
 
 let rect: [number, number, number, number];
 
-const spawn = require("node:child_process")
-    .spawn as typeof import("child_process").spawn;
+// biome-ignore format:
+const spawn = require("node:child_process").spawn as typeof import("child_process").spawn;
 const fs = require("node:fs") as typeof import("fs");
 const os = require("node:os") as typeof import("os");
 const path = require("node:path") as typeof import("path");
-
 import { renderOn, renderSend } from "../../../lib/ipc";
 import { typedEntries } from "../../../lib/utils";
 import type { IconType } from "../../iconTypes";
-
 let pathToFfmpeg = "ffmpeg";
 if (process.platform === "win32" || process.platform === "darwin") {
     const p = path.join(__dirname, "..", "..", "lib", "ffmpeg");
@@ -530,13 +540,6 @@ function runFfmpeg(type: "ts" | "clip" | "join", n: number, args: string[]) {
             console.log(data.toString());
         });
     });
-}
-
-function iconEl(src: IconType) {
-    return image(getImgUrl(`${src}.svg`), "icon").class("icon");
-}
-function iconBEl(src: IconType) {
-    return button().add(image(getImgUrl(`${src}.svg`), "icon").class("icon"));
 }
 
 class time_i extends HTMLElement {

@@ -1,4 +1,5 @@
 import {
+    type ElType,
     a,
     addClass,
     addStyle,
@@ -8,7 +9,6 @@ import {
     confirm,
     dynamicList,
     dynamicSelect,
-    type ElType,
     ele,
     image,
     input,
@@ -31,6 +31,7 @@ import type { GetValue, SettingPath } from "../../../lib/store/renderStore";
 import store from "../../../lib/store/renderStore";
 import { getLanName, getLans, lan, t } from "../../../lib/translate/translate";
 import type { GithubUrlType, setting, 功能 } from "../../ShareTypes";
+import { titleBar } from "../lib/ui";
 import {
     Class,
     cssColor,
@@ -40,31 +41,35 @@ import {
     monoFont,
     setTitle,
 } from "../root/root";
-
+// biome-ignore format:
 const { shell, webUtils } = require("electron") as typeof import("electron");
 const path = require("node:path") as typeof import("path");
 const os = require("node:os") as typeof import("os");
 const fs = require("node:fs") as typeof import("fs");
 
-import Fuse from "fuse.js";
-import { hexToCSSFilter } from "hex-to-css-filter";
-import translator from "xtranslator";
 import logoBlack from "../../../assets/logo/bw/32x32_black.png";
 import logoWhite from "../../../assets/logo/bw/32x32_white.png";
-import _package from "../../../package.json?raw";
 import logo from "../assets/icon.svg";
 import testPhoto from "../assets/sample_picture.svg";
 
+import translator from "xtranslator";
+
+import { hexToCSSFilter } from "hex-to-css-filter";
+
+import Fuse from "fuse.js";
+
+import _package from "../../../package.json?raw";
 const packageJson = JSON.parse(_package);
 
-import { githubMirrorList } from "../../../lib/github_mirror";
-import { renderSend, renderSendSync } from "../../../lib/ipc";
 import {
     ele2jsKeyCode,
     jsKey2ele,
     jsKeyCodeDisplay,
     macKeyFomat,
 } from "../../../lib/key.js";
+
+import { githubMirrorList } from "../../../lib/github_mirror";
+import { renderSend, renderSendSync } from "../../../lib/ipc";
 import { xget, xset } from "../../../lib/store/parse";
 import time_format from "../../../lib/time_format";
 import { safeJSONParse, tryD, tryx } from "../../../lib/utils";
@@ -87,6 +92,7 @@ type JustElmentK =
     | "_filename"
     | "_clear_history"
     | "_clear_browswer"
+    | "_clear_clip_history"
     | "_setting_file"
     | "_default_setting"
     | "_location"
@@ -1125,6 +1131,45 @@ const s: Partial<settingItem<SettingPath>> = {
         desc: "使用OCR等操作复用窗口时，该窗口是否主动弹出聚焦",
         el: () => xSwitch(),
     },
+    "剪贴板历史.开启": {
+        name: "记录剪贴板",
+        desc: "开启后，复制过的文字、图片和文件路径会被记录，可从任务栏按钮或托盘菜单打开面板查看",
+        el: () => xSwitch(),
+    },
+    "剪贴板历史.存储目录": {
+        name: "存储目录",
+        desc: "留空则保存在程序数据目录下；修改后已有记录会自动迁移",
+        el: () => xPath(true),
+    },
+    "剪贴板历史.轮询间隔": {
+        name: "轮询间隔",
+        desc: "数值越小越及时，但更耗电",
+        el: () => xNumber(t("毫秒"), { min: 100, max: 5000, step: 100 }),
+    },
+    "剪贴板历史.保留条数": {
+        name: "保留条数",
+        desc: "固定与回收站中的条目不计入，0 表示不限制",
+        el: () => xNumber(t("条"), { min: 0, max: 10000, step: 10 }),
+    },
+    "剪贴板历史.保留天数": {
+        name: "保留天数",
+        desc: "0 表示不限制",
+        el: () => xNumber(t("天"), { min: 0, max: 365, step: 1 }),
+    },
+    "剪贴板历史.窗口尺寸": {
+        name: "点击任务栏时的尺寸",
+        desc: "唤出面板时用多大的窗口；百分比以屏幕工作区为准，「默认」沿用你上次调整的尺寸",
+        el: (v) =>
+            xSelect<typeof v>(
+                [
+                    { value: "默认" },
+                    { value: "50%", name: noI18n("50%") },
+                    { value: "75%", name: noI18n("75%") },
+                    { value: "100%", name: noI18n("100%") },
+                ],
+                "点击任务栏时的尺寸",
+            ),
+    },
     自动搜索: {
         name: "自动搜索",
         desc: "识屏或直接打开主页面，若文字为一行，则自动搜索",
@@ -1561,16 +1606,25 @@ const s: Partial<settingItem<SettingPath>> = {
             const el = xGroup("y")
                 .class(blockSetting)
                 .add([
-                    xGroup("y").add([
-                        view().add(["强调色", xGroup().add([emL, emD])]),
-                        view().add(["透明背景", xGroup().add([brL, brD])]),
-                        view().add(["普通背景", xGroup().add([bL, bD])]),
-                        view().add(["文字和图标颜色", xGroup().add([fL, fD])]),
-                        view().add([
-                            "强调色中的内容颜色",
-                            xGroup().add([fEL, fED]),
+                    view()
+                        .class("st-theme-inner")
+                        .add([
+                            view().add("强调色"),
+                            emL,
+                            emD,
+                            view().add("透明背景"),
+                            brL,
+                            brD,
+                            view().add("普通背景"),
+                            bL,
+                            bD,
+                            view().add("文字和图标颜色"),
+                            fL,
+                            fD,
+                            view().add("强调色中的内容颜色"),
+                            fEL,
+                            fED,
                         ]),
-                    ]),
                     themeSelect,
                 ])
                 .bindGet(() => {
@@ -1625,7 +1679,7 @@ const s: Partial<settingItem<SettingPath>> = {
         el: () => xNumber("", { min: 0, max: 1, step: 0.05 }),
     },
     "全局.深色模式": {
-        name: "深色模式",
+        name: "外观模式",
         el: (v) =>
             xSelect<typeof v>(
                 [
@@ -1633,7 +1687,7 @@ const s: Partial<settingItem<SettingPath>> = {
                     { value: "light", name: "浅色" },
                     { value: "dark", name: "深色" },
                 ],
-                "深色模式",
+                "外观模式",
             ),
     },
     "全局.缩放": {
@@ -1940,6 +1994,17 @@ const xs: Record<
                     );
             }),
     },
+    _clear_clip_history: {
+        name: "清空剪贴板历史",
+        desc: "被固定的记录不会被清除",
+        el: () =>
+            button("清空未固定记录").on("click", async () => {
+                const c = await confirm(
+                    "这将清除所有未固定的剪贴板记录，且不能复原。确定清除？",
+                );
+                if (c) renderSend("clipHistoryClear", []);
+            }),
+    },
     _clear_browswer: {
         name: "清除数据",
         el: () =>
@@ -2088,6 +2153,8 @@ const main: {
     pageName: string;
     settings?: KeyPath[];
     desc?: string;
+    /** 页面顶部的醒目提示；返回 null 表示当前无需提示 */
+    banner?: () => ElType<HTMLElement> | null;
     items?: { title: string; desc?: string; settings: KeyPath[] }[];
     isMemo?: boolean;
 }[] = [
@@ -2334,6 +2401,29 @@ const main: {
             {
                 title: "界面",
                 settings: ["主页面.显示图片区", "主页面.复用后聚焦"],
+            },
+        ],
+    },
+    {
+        pageName: "剪贴板历史",
+        banner: () => clipHistoryBanner(),
+        items: [
+            {
+                title: "记录",
+                settings: ["剪贴板历史.开启", "剪贴板历史.轮询间隔"],
+            },
+            {
+                title: "窗口",
+                settings: ["剪贴板历史.窗口尺寸"],
+            },
+            {
+                title: "存储",
+                settings: [
+                    "剪贴板历史.存储目录",
+                    "剪贴板历史.保留条数",
+                    "剪贴板历史.保留天数",
+                    "_clear_clip_history",
+                ],
             },
         ],
     },
@@ -2592,6 +2682,20 @@ const bind: { [k in KeyPath]?: KeyPath[] } = {
     "取色器.像素大小": ["_qsq"],
 };
 
+let clipApplyTimer: ReturnType<typeof setTimeout> | undefined;
+/**
+ * 让剪贴板历史的配置改动即时生效。
+ * 存储目录是文本输入框，逐字符触发 input，所以做防抖，
+ * 避免输入路径的过程中反复迁移目录。
+ */
+function applyClipHistorySetting() {
+    if (clipApplyTimer !== undefined) clearTimeout(clipApplyTimer);
+    clipApplyTimer = setTimeout(() => {
+        clipApplyTimer = undefined;
+        renderSend("clipHistoryApplySetting", []);
+    }, 800);
+}
+
 const bindF: { [k in SettingPath]?: (v: GetValue<setting, k>) => void } = {
     "工具栏.按钮大小": (v) => setProperty("--bar-size", `${v}px`),
     "工具栏.按钮图标比例": (v) => setProperty("--bar-icon", String(v)),
@@ -2611,9 +2715,16 @@ const bindF: { [k in SettingPath]?: (v: GetValue<setting, k>) => void } = {
     },
     "全局.深色模式": (v) => renderSend("theme", [v]),
     "全局.模糊": (v) => setProperty("--blur", `blur(${v}px)`),
-    "全局.不透明度": (v) => setProperty("--alpha", String(v)),
+    // --alpha 在 root.css 里是 color-mix 的百分比，initStyle 也是按百分比设的，
+    // 这里必须同样带 %，否则写进去的 "0.4" 不合法，要重开页面才生效。
+    "全局.不透明度": (v) => setProperty("--alpha", `${v * 100}%`),
     "字体.主要字体": (v) => setProperty("--main-font", v),
     "字体.等宽字体": (v) => setProperty("--monospace", v || monoFont.join(",")),
+    "剪贴板历史.开启": () => applyClipHistorySetting(),
+    "剪贴板历史.存储目录": () => applyClipHistorySetting(),
+    "剪贴板历史.轮询间隔": () => applyClipHistorySetting(),
+    "剪贴板历史.保留条数": () => applyClipHistorySetting(),
+    "剪贴板历史.保留天数": () => applyClipHistorySetting(),
 };
 
 const bindF2: { f: (has: boolean) => void; keys: SettingPath[] }[] = [
@@ -2799,6 +2910,22 @@ type Theme2 = {
 const themes: Theme2[] = [
     {
         light: {
+            barbg: "#F1E9DA",
+            bg: "#FAF5EA",
+            emphasis: "#E9DCC2",
+            fontColor: "#241F1A",
+            fontInEmphasis: "#241F1A",
+        },
+        dark: {
+            barbg: "#201C17",
+            bg: "#17140F",
+            emphasis: "#352E24",
+            fontColor: "#F2EDE3",
+            fontInEmphasis: "#F2EDE3",
+        },
+    },
+    {
+        light: {
             barbg: "#FFFFFF",
             bg: "#FFFFFF",
             emphasis: "#DFDFDF",
@@ -2936,14 +3063,23 @@ function renderSetting(settingPath: KeyPath) {
             });
         }
     });
-    const pel = view("x", "wrap")
-        .style({ justifyContent: "space-between" })
-        .class(Class.gap)
+    const hotkeyIcon = el.el.dataset.stIcon;
+    el.class("st-ctl");
+    const pel = view()
+        .class("st-row")
+        .class(el.el.classList.contains(blockSetting) ? "st-row--wide" : "")
         .data({ name: settingPath })
         .add([
             view().add([
-                p(setting.name, true).style({ fontSize: "1.1em" }),
-                setting.desc ? comment(setting.desc) : "",
+                view("x")
+                    .class("st-name-line")
+                    .add([
+                        p(setting.name, true).class("st-name"),
+                        ...(hotkeyIcon
+                            ? [view().add(iconEl(hotkeyIcon as IconType))]
+                            : []),
+                    ]),
+                setting.desc ? comment(setting.desc).class("st-desc") : "",
             ]),
             el,
         ]);
@@ -3008,10 +3144,10 @@ function reRenderSetting(settingPath: KeyPath) {
 }
 
 function renderSettingList(l: string[]) {
-    mainView.clear();
+    pageView.clear();
     for (const i of l) {
         const title = getTitles.get(i);
-        mainView.add(
+        pageView.add(
             view().add([
                 txt("", true)
                     .sv(
@@ -3042,6 +3178,28 @@ function comment(str: string) {
         color: cssColor.font.light,
         fontSize: "0.8em",
     });
+}
+
+/** 页面顶部的醒目提示条 */
+function banner(text: string) {
+    return view("y")
+        .class(Class.deco)
+        .style({
+            padding: cssVar("o-padding"),
+            color: cssColor.main,
+            outline: `1px solid ${cssColor.main}`,
+            outlineOffset: "-1px",
+            backgroundColor:
+                "color-mix(in srgb, var(--font-color-emphasis) 12%, transparent)",
+        })
+        .add(txt(text));
+}
+
+/** 剪贴板历史：safeStorage 不可用时落盘会降级为明文，需在设置页显著提示 */
+function clipHistoryBanner() {
+    const r = renderSendSync("clipHistoryEncryption", []);
+    if (r.encrypted || !r.warning) return null;
+    return banner(r.warning);
 }
 
 function xGroup(r: "x" | "y" = "x") {
@@ -3668,7 +3826,7 @@ function dialogB(
     d: ElType<HTMLDialogElement>,
     els: ElType<HTMLElement>[],
     onClose: () => void,
-    // biome-ignore lint/suspicious/noConfusingVoidType: 保留回调签名
+    // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
     onOk: () => boolean | undefined | void,
 ) {
     d.add(
@@ -4041,7 +4199,7 @@ function translatorD(
 
 function transSaveHelp() {
     return a(
-        `https://github.com/xushengfeng/eSearch/blob/${packageJson.version}/docs/use/translate.md#生词本`,
+        "https://github.com/xushengfeng/eSearch/blob/master/docs/use/translate.md#生词本",
     ).add("教程帮助");
 }
 
@@ -4312,7 +4470,7 @@ function inpaintEl() {
                     }
                     const contentLength = res.headers.get("content-length");
                     const totalBytes = contentLength
-                        ? Number.parseInt(contentLength, 10)
+                        ? Number.parseInt(contentLength)
                         : undefined;
                     const reader = res.body.getReader();
                     let downloadedBytes = 0;
@@ -4657,7 +4815,7 @@ function ocrEl() {
                                     const contentLength =
                                         res.headers.get("content-length");
                                     const totalBytes = contentLength
-                                        ? Number.parseInt(contentLength, 10)
+                                        ? Number.parseInt(contentLength)
                                         : undefined;
 
                                     const reader = res.body.getReader();
@@ -4891,9 +5049,10 @@ function unzip(b: Buffer, targetDir: string) {
 function hotkeyP(icon: IconType | "" = "") {
     const h = hotkey();
     const el = xGroup()
-        .add([icon ? view().add(iconEl(icon)) : "", h])
+        .add([h])
         .bindGet(() => h.gv)
         .bindSet((v: string) => h.sv(v));
+    if (icon) el.el.dataset.stIcon = icon;
     h.on("input", () => el.el.dispatchEvent(new CustomEvent("input")));
     return el;
 }
@@ -4904,9 +5063,10 @@ function hotkeyX(
     const h = hotkey();
     let applied = h.gv;
     const el = xGroup()
-        .add([icon ? view().add(iconEl(icon)) : "", h])
+        .add([h])
         .bindGet(() => h.gv)
         .bindSet((v: string) => h.sv(v));
+    if (icon) el.el.dataset.stIcon = icon;
     h.on("input", () => {
         const next = h.gv;
         const arg =
@@ -4955,21 +5115,25 @@ async function showPage(page: (typeof main)[0] | undefined) {
         console.warn("Page not found");
         return;
     }
-    mainView.clear();
+    pageView.clear();
     mainViewP.el.scrollTop = 0;
-    mainView.add(ele("h1").add(noI18n(page.pageName)));
-    if (page.desc) mainView.add(comment(page.desc));
+    pageView.add(ele("h1").add(noI18n(page.pageName)));
+    if (page.desc) pageView.add(comment(page.desc));
+    if (page.banner) {
+        const b = page.banner();
+        if (b) pageView.add(b);
+    }
     if (page.settings) {
         for (const setting of page.settings) {
-            mainView.add(renderSetting(setting));
+            pageView.add(renderSetting(setting));
         }
     }
     if (page.items) {
         for (const item of page.items) {
-            mainView.add(ele("h2").add(noI18n(item.title)));
-            if (item.desc) mainView.add(comment(item.desc));
+            pageView.add(ele("h2").add(noI18n(item.title)));
+            if (item.desc) pageView.add(comment(item.desc));
             for (const setting of item.settings) {
-                mainView.add(renderSetting(setting));
+                pageView.add(renderSetting(setting));
             }
             // @ts-ignore
             await scheduler.yield();
@@ -4978,7 +5142,7 @@ async function showPage(page: (typeof main)[0] | undefined) {
     if (page.isMemo) {
         const m = getSettingMem();
         for (const setting of m) {
-            mainView.add(renderSetting(setting));
+            pageView.add(renderSetting(setting));
         }
     }
 }
@@ -4991,7 +5155,7 @@ window.CSS.registerProperty({
 });
 
 function about() {
-    const el = view("y").style({ alignItems: "center", margin: "120px 0" });
+    const el = view("y").class("st-about");
     const logoEl = image(logo, noI18n("logo"))
         .style({
             width: "200px",
@@ -5064,7 +5228,7 @@ function about() {
                                 trans.remove();
                                 return;
                             }
-                            // biome-ignore format: 保持原格式
+                            // biome-ignore format:
                             const x = transE.at(0) as setting["翻译"]["翻译器"][0];
                             // @ts-ignore
                             translator.e[x.type].setKeys(x.keys);
@@ -5121,9 +5285,9 @@ function about() {
                 .catch((error) => console.log("error", error));
         });
     const update = view("y").style({ gap: "16px" });
-    const desc = p(packageJson.description);
+    const desc = p(packageJson.description).class("st-tagline");
 
-    const infoEl = view("y").style({ alignItems: "center" });
+    const infoEl = view("y").style({ gap: "4px" });
 
     infoEl.add([
         view().add([
@@ -5138,17 +5302,6 @@ function about() {
             " ",
             a("https://github.com/xushengfeng").add("赞赏"),
         ]),
-        view().add([
-            a(renderSendSync("feedbackBug", [])).add("反馈问题"),
-            " ",
-            a(
-                renderSendSync("feedbackFeature", [
-                    { title: "建议在……添加……功能/改进" },
-                ]),
-            ).add("提供建议"),
-            " ",
-            txt("QQ:1057170038"),
-        ]),
         view().add(
             a(
                 "https://github.com/xushengfeng/eSearch/tree/master/lib/translate",
@@ -5161,14 +5314,18 @@ function about() {
                 noI18n(packageJson.license),
             ),
         ]),
-        view().add(
-            noI18n(
-                `Copyright © 2021-${new Date().getFullYear()} ${packageJson.author.name} ${packageJson.author.email}`,
-            ),
-        ),
+        view().add("本软件基于 eSearch（xushengfeng）修改"),
     ]);
 
-    return el.add([logoEl, nameEl, version, update, desc, infoEl]);
+    return el.add([
+        view("y")
+            .class("st-about-head")
+            .style({ gap: "8px" })
+            .add([logoEl, nameEl, version]),
+        update,
+        desc,
+        infoEl,
+    ]);
 }
 
 setTranslate((text) => t(text));
@@ -5194,12 +5351,17 @@ for (const p of main) {
         }
 }
 
-pack(document.body).style({ display: "flex" });
+pack(document.body).style({
+    display: "flex",
+    flexDirection: "column",
+    height: "100vh",
+    overflow: "hidden",
+});
 
 setTitle(t("设置"));
 
 const baseWidth = "300px";
-const baseWidth2 = "150px";
+const baseWidth2 = "160px";
 
 const blockSetting = addClass(
     {
@@ -5212,6 +5374,7 @@ addStyle({
     h1: {
         fontSize: "3rem",
         fontWeight: 100,
+        fontFamily: "var(--display-font)",
     },
     h2: {
         fontSize: "1.8rem",
@@ -5220,7 +5383,8 @@ addStyle({
         background: "var(--bg)",
         zIndex: 1,
         fontWeight: 100,
-        marginBlockStart: "28px",
+        fontFamily: "var(--display-font)",
+        marginBlockStart: "32px",
     },
     a: {
         textDecoration: "underline",
@@ -5240,13 +5404,7 @@ addStyle({
 
 const sideBar = view("y")
     .addInto()
-    .style({
-        padding: cssVar("o-padding"),
-        flexShrink: 0,
-        width: "200px",
-        height: "100vh",
-        overflowY: "auto",
-    })
+    .class("st-side")
     .class(
         addClass(
             {},
@@ -5265,10 +5423,7 @@ const searchBar = view("x").style({
 });
 const searchI = input()
     .attr({ placeholder: t("搜索设置") })
-    .style({
-        width: "100%",
-        maxWidth: `calc(680px - ${cssVar("o-padding")} * 2)`,
-    })
+    .class("st-search")
     .addInto(searchBar)
     .on("input", () => {
         if (!searchI.gv) {
@@ -5284,7 +5439,7 @@ const searchI = input()
 
         const l = fuse.search(searchI.gv).map((i) => i.item[0]);
         if (l.length === 0)
-            mainView.clear().add(
+            pageView.clear().add(
                 xGroup("y")
                     .style({
                         alignItems: "center",
@@ -5304,30 +5459,31 @@ const searchI = input()
     });
 const mainViewP = view().addInto().style({
     overflowY: "scroll",
-    height: "100vh",
+    flex: "1",
+    minHeight: "0",
     flexGrow: "1",
 });
-mainViewP.add(searchBar);
 const mainView = view()
     .addInto(mainViewP)
-    .style({
-        maxWidth: "680px",
-        margin: "auto",
-        padding: cssVar("o-padding"),
-        minHeight: "100vh",
-    })
-    .class(
-        addClass(
-            {},
-            {
-                "&>div": {
-                    marginBlock: "22px",
-                },
-            },
-        ),
-    );
+    .class("st-main")
+    .style({ minHeight: "100vh" });
+searchBar.addInto(mainView);
+const pageView = view().class("st-page").addInto(mainView);
+mainView.add(about());
 
-mainViewP.add(about());
+// 纸墨自绘标题栏（三窗控）；侧边栏 + 主内容区收进一行。
+// 嵌进控制中心壳时（URL 带 embedded 标记）壳顶栏已有窗控，这里不再画一份。
+const embedded = new URLSearchParams(location.search).has("embedded");
+const head = titleBar(t("设置"), [], embedded).style({
+    gap: "8px",
+    borderBottom: "1px solid var(--border-color)",
+    flexShrink: 0,
+});
+const wrap = view("x")
+    .style({ flex: "1", minHeight: "0", display: "flex" })
+    .add([sideBar, mainViewP]);
+head.addInto();
+wrap.addInto();
 
 const contextMenuP = view()
     .style({ margin: 0, padding: 0, borderRadius: cssVar("o-padding") })
@@ -5352,9 +5508,9 @@ function showContextMenu(e: MouseEvent) {
 }
 
 for (const [i, page] of main.entries()) {
-    const sideEl = view().add(
-        sideBarG.new(String(i), txt(page.pageName, true)),
-    );
+    const sideEl = view()
+        .class("st-nav-item")
+        .add(sideBarG.new(String(i), txt(page.pageName, true)));
     sideBar.add(sideEl);
 }
 

@@ -209,9 +209,7 @@ body input {
     height: calc(var(--bar-size) * 7);
     position: fixed;
     z-index: 100;
-    transition:
-        width var(--transition),
-        opacity var(--transition);
+    transition: width var(--transition), opacity var(--transition);
 }
 #draw_bar > div {
     width: var(--bar-size);
@@ -278,26 +276,10 @@ body input {
 #clip_photo {
     z-index: 10;
     cursor: crosshair;
+    /* 独立合成层，遮罩和参考线重绘不再牵动截图画布所在的层 */
+    will-change: transform;
 }
-#clip_mask,
-#clip_line {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    pointer-events: none;
-    contain: paint;
-}
-#clip_mask {
-    z-index: 9;
-}
-#clip_line {
-    z-index: 10;
-}
-#clip_mask div,
-#clip_line div {
+#clip_photo div {
     position: absolute;
     pointer-events: none;
 }
@@ -345,9 +327,7 @@ body input {
 #point_color > div:nth-of-type(1) {
     width: var(--color-i-size);
     height: var(--color-i-size);
-    box-shadow:
-        #000 0 0 0 1px,
-        #fff 0 0 0 2px;
+    box-shadow: #000 0 0 0 1px, #fff 0 0 0 2px;
 }
 #point_color > div:nth-of-type(2),
 #point_color > div:nth-of-type(3) {
@@ -412,13 +392,13 @@ body input {
 /* long */
 #long_rect {
     position: fixed;
-    outline: 1px dashed #000;
+    outline: 1px dashed var(--font-color);
 }
 
 #long_finish {
     width: 16px;
     height: 16px;
-    background-color: #f00;
+    background-color: var(--accent-cinnabar);
     border-radius: 8px;
     position: absolute;
     right: 0;
@@ -453,8 +433,8 @@ body input {
     border-width: calc(var(--bar-size) / 15);
     border-style: solid;
     box-sizing: border-box;
-    border-color: #333;
-    background-color: #fff;
+    border-color: var(--border-color);
+    background-color: var(--bg);
 }
 #draw_color_switch {
     position: relative;
