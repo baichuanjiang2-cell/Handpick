@@ -818,11 +818,24 @@ function thumbFor(id: string) {
     return img;
 }
 
+let lightboxId = "";
 const lightboxImg = ele("img").style({
     maxWidth: "90vw",
-    maxHeight: "88vh",
+    maxHeight: "80vh",
     objectFit: "contain",
 });
+const lightboxCopy = button()
+    .class("ch-lightbox-copy")
+    .add([icon("copy"), txt(t("复制"))])
+    .on("click", () => {
+        if (!lightboxId) return;
+        renderSend("clipHistoryCopy", [lightboxId]);
+        lightbox.el.close();
+        toast(t("已复制到剪贴板"));
+    });
+const lightboxBox = view("y")
+    .class("ch-lightbox-box")
+    .add([lightboxImg, lightboxCopy]);
 const lightbox = ele("dialog")
     .class("ch-lightbox")
     .style({
@@ -833,12 +846,14 @@ const lightbox = ele("dialog")
         maxHeight: "none",
         overflow: "visible",
     })
-    .add(lightboxImg)
+    .add(lightboxBox)
     .addInto();
 lightbox.on("click", (e) => {
-    if (e.target === lightbox.el) lightbox.el.close();
+    if (e.target === lightbox.el || e.target === lightboxBox.el)
+        lightbox.el.close();
 });
 lightbox.on("close", () => {
+    lightboxId = "";
     lightboxImg.el.removeAttribute("src");
 });
 
@@ -846,6 +861,7 @@ function showFullImage(id: string) {
     if (lightbox.el.open) return;
     const url = renderSendSync("clipHistoryFull", [id]);
     if (!url) return;
+    lightboxId = id;
     lightboxImg.el.src = url;
     lightbox.el.showModal();
 }
@@ -898,17 +914,23 @@ function rowEl(item: ClipItem) {
             ]),
     );
 
-    const actionKey = item.type === "image" ? "view" : "copy";
     const acts = view("x").class("ch-row-acts");
     if (!trash) {
-        acts.add(
-            button(icon(item.type === "image" ? "eye" : "copy"))
-                .class("ch-row-act")
-                .data({ "row-act": actionKey, id: item.id })
-                .attr({
-                    title: t(item.type === "image" ? "放大查看" : "复制"),
-                }),
-        );
+        const rowActs: [IconType, string, string][] =
+            item.type === "image"
+                ? [
+                      ["copy", "copy", "复制"],
+                      ["eye", "view", "放大查看"],
+                  ]
+                : [["copy", "copy", "复制"]];
+        for (const [ic, act, label] of rowActs) {
+            acts.add(
+                button(icon(ic))
+                    .class("ch-row-act")
+                    .data({ "row-act": act, id: item.id })
+                    .attr({ title: t(label) }),
+            );
+        }
     }
     row.add([mainBtn, acts]);
     return row;
@@ -1225,23 +1247,19 @@ function renderDetail() {
             ),
         ]);
     } else {
-        const primaryLabel =
-            item.type === "image"
-                ? t("放大查看")
-                : item.type === "file"
-                  ? t("复制路径")
-                  : t("复制");
-        const primaryIcon = item.type === "image" ? "eye" : "copy";
-        const primaryAction = item.type === "image" ? "view" : "copy";
         actions.add(
             detailBtn(
-                primaryLabel,
-                primaryAction,
+                item.type === "file" ? t("复制路径") : t("复制"),
+                "copy",
                 item.id,
                 "ch-btn-primary",
-                primaryIcon,
+                "copy",
             ),
         );
+        if (item.type === "image")
+            actions.add(
+                detailBtn(t("放大查看"), "view", item.id, "ch-btn-line", "eye"),
+            );
         actions.add(
             detailBtn(
                 item.pinned ? t("取消固定") : t("固定"),
@@ -1503,15 +1521,10 @@ listScroll.on("dblclick", (e) => {
         ".ch-row-main",
     );
     const row = mainBtn?.closest<HTMLElement>(".ch-row");
-    const item = row?.dataset.id
-        ? visibleItems.find((i) => i.id === row.dataset.id)
-        : null;
-    if (!item) return;
-    if (item.type === "image") showFullImage(item.id);
-    else {
-        renderSend("clipHistoryCopy", [item.id]);
-        toast(t("已复制到剪贴板"));
-    }
+    if (!row?.dataset.id) return;
+    if (!visibleItems.some((i) => i.id === row.dataset.id)) return;
+    renderSend("clipHistoryCopy", [row.dataset.id]);
+    toast(t("已复制到剪贴板"));
 });
 
 listScroll.on("keydown", (e) => {

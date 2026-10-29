@@ -972,7 +972,7 @@
     display: flex;
     flex: none;
     justify-content: flex-start;
-    width: 36px;
+    width: auto;
 }
 
 .ch-row .ch-row-act {
@@ -2261,4 +2261,36 @@
     .ch-toast {
         transition: none;
     }
+}
+
+.ch-lightbox-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.ch-lightbox-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: auto;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--ch-rule);
+    border-radius: 3px;
+    color: var(--font-color);
+    font-size: 12px;
+    white-space: nowrap;
+    background: var(--bg);
+}
+
+.ch-lightbox-copy:hover {
+    background: var(--hover-color);
+}
+
+.ch-lightbox-copy .ch-icon {
+    width: 14px;
+    height: 14px;
 }
