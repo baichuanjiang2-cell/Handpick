@@ -11,6 +11,19 @@ export default defineConfig(({ mode }) => ({
         },
     },
     renderer: {
+        // 原生 .node 模块（截屏 / OCR / 抠背景 / 键鼠钩子）不能预打包：
+        // 预打包会让 esbuild 撞上 .node 二进制（No loader configured）或
+        // 破坏二进制；node-screenshots 的 tarball 还缺它声明的 browser 入口，
+        // 会把整个依赖扫描搞挂。排除后运行时走 Node require，与打包版一致。
+        optimizeDeps: {
+            exclude: [
+                "node-screenshots",
+                "onnxruntime-node",
+                "esearch-seg",
+                "esearch-ocr",
+                "uiohook-napi",
+            ],
+        },
         build: {
             rollupOptions: {
                 input: {

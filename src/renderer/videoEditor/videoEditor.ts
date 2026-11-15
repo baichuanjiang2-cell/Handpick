@@ -147,6 +147,7 @@ const v = {
 
 const frameLength = store.get("录屏.超级录屏.关键帧间隔");
 
+// 编辑器窗口在「开始录制」按下后才创建，装载时读到的就是就绪条定格的档位
 const srcRate = store.get("录屏.转换.帧率");
 const bitrate = store.get("录屏.转换.码率") * 1024 * 1024;
 
@@ -2257,11 +2258,18 @@ async function save() {
 }
 
 function getSavePath(type: baseType) {
-    return renderSendSync("save_file_path", [
-        type,
-        type === "mp4" || type === "webm",
-    ]);
+    // 编辑器只服务录屏产物：一律按视频上下文走视频目录与 录屏.自动保存
+    return renderSendSync("save_file_path", [type, true]);
 }
+
+/** 区域录屏直出：转换进度中继到悬浮条（编辑器窗口最小化时它是唯一可见面） */
+let exportProgressCb: ((p: number) => void) | null = null;
+/** 用户在悬浮条上取消直出转换 */
+let directCancel = false;
+
+renderOn("exportCancel", () => {
+    directCancel = true;
+});
 
 const audioExportBitrate = 128000;
 
@@ -2314,6 +2322,10 @@ async function saveImages() {
     let i = 0;
     const decoder = new VideoDecoder({
         output: (frame: VideoFrame) => {
+            if (directCancel) {
+                frame.close();
+                return;
+            }
             const t = frameTrans2Canvas(frame);
             t.convertToBlob({ type: "image/png" }).then(async (blob) => {
                 const buffer = Buffer.from(await blob.arrayBuffer());
@@ -2325,6 +2337,7 @@ async function saveImages() {
             });
             i++;
             imgProgress.sv(i / transformCs.length);
+            exportProgressCb?.(i / transformCs.length);
         },
         error: (e) => console.error("Decode error:", e),
     });
@@ -2333,11 +2346,18 @@ async function saveImages() {
 
     decoder.configure(decoderVideoConfig);
     for (const [_, chunk] of transformCs.entries()) {
+        if (directCancel) break;
         if (chunk.type === "key") await decoder.flush();
         decoder.decode(chunk);
     }
 
     await decoder.flush();
+
+    if (directCancel) {
+        decoder.close();
+        imgProgress.remove();
+        return;
+    }
 
     imgProgress.remove();
 
@@ -2408,6 +2428,7 @@ async function saveGif(op?: {
             });
             i++;
             gifProgress.sv(i / transformCs.length);
+            exportProgressCb?.(i / transformCs.length);
         },
         error: (e) => console.error("Decode error:", e),
     });
@@ -2419,6 +2440,7 @@ async function saveGif(op?: {
     let top = 0;
     const d = Math.floor(transformCs.length / 10);
     for (const [id] of transformCs.entries()) {
+        if (directCancel) break;
         if (id % d === 0) {
             // 统一内容获取：渲染中的帧等完成（导出被新编辑取代时也安全）
             const i = await fetchFrame(exportFrameGet, id);
@@ -2443,11 +2465,24 @@ async function saveGif(op?: {
 
     decoder.configure(decoderVideoConfig);
     for (const [_, chunk] of transformCs.entries()) {
+        if (directCancel) break;
         if (chunk.type === "key") await decoder.flush();
         decoder.decode(chunk);
     }
 
     await decoder.flush();
+
+    if (directCancel) {
+        // 直出被取消：文件还没写盘，直接放弃
+        try {
+            decoder.close();
+        } catch (e) {
+            console.error(e);
+        }
+        gifProgress.remove();
+        return;
+    }
+
     decoder.close();
     gif.finish();
     const bytes = gif.bytes();
@@ -2507,6 +2542,7 @@ async function saveApng() {
             dels.push(delay);
             i++;
             apngProgress.sv(i / transformCs.length);
+            exportProgressCb?.(i / transformCs.length);
         },
         error: (e) => console.error("Decode error:", e),
     });
@@ -2515,11 +2551,23 @@ async function saveApng() {
 
     decoder.configure(decoderVideoConfig);
     for (const [_, chunk] of transformCs.entries()) {
+        if (directCancel) break;
         if (chunk.type === "key") await decoder.flush();
         decoder.decode(chunk);
     }
 
     await decoder.flush();
+
+    if (directCancel) {
+        try {
+            decoder.close();
+        } catch (e) {
+            console.error(e);
+        }
+        apngProgress.remove();
+        return;
+    }
+
     decoder.close();
 
     const bytes = UPNG.encode(images, outputV.width, outputV.height, 0, dels);
@@ -2554,7 +2602,10 @@ async function saveWebm(op: { codec: "vp8" | "vp9" | "av1" }) {
 
     await output.start();
 
+    let muxI = 0;
     for (const [_, chunk] of transformCs.entries()) {
+        muxI++;
+        exportProgressCb?.(muxI / transformCs.length);
         await videoSource.add(EncodedPacket.fromEncodedChunk(chunk), {
             decoderConfig: {
                 ...decoderVideoConfig,
@@ -2600,7 +2651,10 @@ async function saveMp4(op: { codec: "avc" | "vp9" | "av1" }) {
 
     await output.start();
 
+    let muxI = 0;
     for (const [_, chunk] of transformCs.entries()) {
+        muxI++;
+        exportProgressCb?.(muxI / transformCs.length);
         await videoSource.add(EncodedPacket.fromEncodedChunk(chunk), {
             decoderConfig: {
                 ...decoderVideoConfig,
@@ -3853,13 +3907,6 @@ titleBar(t("超级录屏"))
     const videoWidth = videoTrack.getSettings().width ?? screen.width;
     const videoHeight = videoTrack.getSettings().height ?? screen.height;
 
-    encoder.configure({
-        ...encoderVideoConfig,
-        width: videoWidth,
-        height: videoHeight,
-        framerate: srcRate,
-        bitrate: bitrate,
-    });
     v.width = videoWidth;
     v.height = videoHeight;
 
@@ -3937,6 +3984,47 @@ titleBar(t("超级录屏"))
         );
     }
 
+    // ── 暂停状态机（仅区域录屏）。
+    // 自由全屏模式的运镜键按墙钟记录，暂停平移会让点击变焦错位，
+    // 所以暂停不开放给自由模式；想要录制中暂停可走区域录屏或经典录屏。
+    // 「开始前不录」由截图覆盖层的录屏就绪条负责：点了「开始录制」
+    // 才会创建本窗口，这里装载即录。
+    let state: "recording" | "paused" = "recording";
+    // 闭包里改 state、主循环里读：绕开 TS 对闭包可变量的收窄
+    const isPaused = () => state === "paused";
+    let pauseStartFrameTs: number | null = null;
+    let tsShift = 0;
+    let pausedAccumMs = 0;
+    let pauseStartPerf = 0;
+    const timerStart = performance.now();
+
+    if (fixed) {
+        renderOn("recordPauseToggle", () => {
+            if (state === "recording") {
+                state = "paused";
+                pauseStartPerf = performance.now();
+                audioCapture.setPaused(true);
+                renderSend("recordStateX", ["paused"]);
+            } else {
+                state = "recording";
+                pausedAccumMs += performance.now() - pauseStartPerf;
+                // 音视频共用同一采集时钟的偏移量，恢复时先同步再放行
+                audioCapture.setShift(tsShift);
+                audioCapture.setPaused(false);
+                renderSend("recordStateX", ["recording"]);
+            }
+        });
+        renderSend("recordStateX", ["recording"]);
+    }
+
+    encoder.configure({
+        ...encoderVideoConfig,
+        width: videoWidth,
+        height: videoHeight,
+        framerate: srcRate,
+        bitrate: bitrate,
+    });
+
     stopRecord = async (cancel?: boolean) => {
         stopRecord = () => {}; // 只运行一次
 
@@ -3949,7 +4037,8 @@ titleBar(t("超级录屏"))
 
         reader.cancel();
 
-        if (fixed) renderSend("recordStop", []);
+        // 暂停中停止：先解除音频暂停，让采集侧把队列排空
+        audioCapture.setPaused(false);
 
         const audioStop = audioCapture
             .stop(encodedChunks.at(0)?.timestamp)
@@ -3959,11 +4048,17 @@ titleBar(t("超级录屏"))
             });
 
         if (cancel) {
+            if (fixed) renderSend("recordStop", []);
             renderSend("windowClose", []);
             return;
         }
 
-        renderSend("windowMax", []);
+        // 直出（区域录屏，ADR 0014）：悬浮条留到导出结束才关，先显示转换进度
+        const directOut = fixed && store.get("录屏.区域直出") !== false;
+        if (fixed && !directOut) renderSend("recordStop", []);
+
+        // 直出时编辑器保持最小化（悬浮条是唯一可见面），别把它弹回前台
+        if (!directOut) renderSend("windowMax", []);
 
         await encoder.flush();
         encoder.close();
@@ -4004,6 +4099,26 @@ titleBar(t("超级录屏"))
         setPlaySize();
         runAfterTrans();
 
+        if (directOut) {
+            renderSend("recordStateX", ["converting"]);
+            directCancel = false;
+            exportProgressCb = (v) => renderSend("exportProgress", [v]);
+            // 待命阶段可能改过格式，导出前同步到导出选择
+            const fmt = store.get("录屏.超级录屏.格式") as
+                | (typeof outputType)[number]["type"]
+                | undefined;
+            exportEls.type.sv(fmt ?? exportEls.type.gv);
+            try {
+                await save();
+            } catch (e) {
+                console.error("区域录屏直出失败", e);
+            }
+            exportProgressCb = null;
+            renderSend("recordStop", []);
+            renderSend("windowClose", []);
+            return;
+        }
+
         // UI 初始化不依赖编码完成，立即执行
         const nowUi = history.getData();
         renderUiData(nowUi);
@@ -4030,21 +4145,41 @@ titleBar(t("超级录屏"))
     while (true) {
         const { done, value: videoFrame } = await reader.read();
         if (done) break;
+        // 校准必须用原始时间戳（暂停平移不动时钟映射）
         audioCapture.noteVideoTs(videoFrame.timestamp);
+        if (isPaused()) {
+            // 暂停：帧照读不编；恢复后把时间戳整体前移，视频里不留空洞
+            if (pauseStartFrameTs === null)
+                pauseStartFrameTs = videoFrame.timestamp;
+            videoFrame.close();
+            continue;
+        }
+        if (pauseStartFrameTs !== null) {
+            // 恢复：用同一采集时钟的偏移量平移视频，音频侧同步同一偏移
+            tsShift += videoFrame.timestamp - pauseStartFrameTs;
+            pauseStartFrameTs = null;
+        }
         if (encoder.encodeQueueSize > 2) {
             videoFrame.close();
         } else {
-            encoder.encode(videoFrame, {
+            let frame = videoFrame;
+            if (tsShift > 0) {
+                frame = new VideoFrame(videoFrame, {
+                    timestamp: videoFrame.timestamp - tsShift,
+                });
+                videoFrame.close();
+            }
+            encoder.encode(frame, {
                 keyFrame: encodedI % frameLength === 0,
             });
             encodedI++;
-            videoFrame.close();
+            frame.close();
         }
 
         const nowTime = performance.now();
         if (nowTime - lastTime > 300) {
             lastTime = nowTime;
-            const d = nowTime - keys[0].time;
+            const d = nowTime - timerStart - pausedAccumMs;
             recordTime.sv(d);
             if (fixed) renderSend("recordTime", [tipTime(d)]);
         }

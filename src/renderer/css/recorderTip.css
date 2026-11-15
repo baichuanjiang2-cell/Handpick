@@ -96,3 +96,8 @@ body {
 .wheel_r {
     clip-path: polygon(100% 50%, 0% 0%, 0% 100%);
 }
+
+/* 键鼠可视化开启时按钮着墨绿 */
+.km_on {
+    color: var(--accent-pine);
+}

@@ -115,6 +115,23 @@ export class AudioCapture {
     private vOff = Number.POSITIVE_INFINITY;
     /** 音频时间戳与 perf.now 的最小偏差，µs */
     private aOff = Number.POSITIVE_INFINITY;
+    /** 暂停期间不编码音频，暂停段的音频直接丢弃 */
+    private paused = false;
+    /** 累计的暂停时长（采集时钟 µs），编码时从时间戳里扣掉 */
+    private shiftUs = 0;
+
+    /**
+     * 暂停 / 恢复音频采集：暂停期间的音频块直接丢弃，不留空洞。
+     * 恢复时调用方必须把视频侧累计的暂停偏移同步过来（同一采集时钟）。
+     */
+    setPaused(on: boolean) {
+        this.paused = on;
+    }
+
+    /** 设置累计暂停偏移（µs，采集时钟），与视频帧时间戳平移保持一致 */
+    setShift(us: number) {
+        this.shiftUs = us;
+    }
 
     setSourceId(id: string) {
         this.sourceId = id;
@@ -369,8 +386,17 @@ export class AudioCapture {
         while (!this.stopped) {
             const { done, value } = await reader.read();
             if (done || !value) break;
-            const ts = value.timestamp;
-            this.aOff = Math.min(this.aOff, ts - performance.now() * 1000);
+            // 校准必须用原始时间戳：shift 只服务于编码时间轴，不动时钟映射
+            this.aOff = Math.min(
+                this.aOff,
+                value.timestamp - performance.now() * 1000,
+            );
+            if (this.paused) {
+                // 暂停段丢弃，恢复后的块由 shift 扣掉暂停时长接平
+                value.close();
+                continue;
+            }
+            const ts = value.timestamp - this.shiftUs;
             const inRate = value.sampleRate;
             if (!this.outRate) {
                 this.outRate = opusSampleRates.includes(inRate)

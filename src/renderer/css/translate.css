@@ -1,0 +1,370 @@
+/*
+ * 翻译页（控制中心栏目）——纸墨 × 墨色账本
+ *
+ * 方向：achromatic-ledger。chrome 全墨（纸、墨线、灰阶），
+ * 唯一的彩色落在「检测到」徽标上（松绿，屏上唯一的信号色）；
+ * 朱砂只出现在失败状态的小圆点；金色不属于本页。
+ * 结果不是卡片栅格，而是一本账册：每引擎一条，细墨线分行，
+ * 引擎名占左侧固定列，动作列靠右。
+ */
+
+:root {
+    /* 行分隔的淡墨线：比细墨线 --border-color 更轻一档 */
+    --tr-rule: color-mix(in srgb, var(--font-color) 10%, var(--bg));
+    /* 次级墨字：承担文字的最浅一档，对纸底 ≥ 4.5:1 */
+    --tr-ink-soft: color-mix(in srgb, var(--font-color) 65%, var(--bg));
+}
+
+/* ── 页面骨架 ─────────────────────────────────────────────── */
+
+.tr-page {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    width: min(100% - 48px, 1040px);
+    margin-inline: auto;
+    padding-block: 20px 0;
+}
+
+.tr-title {
+    margin: 0;
+    font-family: var(--title-font);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.tr-dir-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+/* ── 「检测到」徽标：全页唯一的彩色信号 ──────────────────── */
+
+.tr-chip {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--accent-pine) 14%, var(--bg));
+    color: color-mix(in srgb, var(--accent-pine) 75%, var(--font-color));
+    font-size: 12px;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ── 源文输入 ─────────────────────────────────────────────── */
+
+.tr-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border: none;
+    field-sizing: content;
+    min-height: 5lh;
+    max-height: 42%;
+    background-color: color-mix(in srgb, var(--font-color) 4%, var(--bg));
+    outline: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 16px;
+    line-height: 1.6;
+    flex-shrink: 0;
+    transition: none;
+    resize: none;
+}
+
+.tr-input::placeholder {
+    color: var(--tr-ink-soft);
+    opacity: 1;
+}
+
+/* ── 结果账册 ─────────────────────────────────────────────── */
+
+.tr-ledger {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    flex: 1;
+    overflow: auto;
+    padding-bottom: 8px;
+}
+
+.tr-entry {
+    display: grid;
+    grid-template-columns: minmax(88px, 132px) minmax(0, 1fr) auto;
+    gap: 4px 20px;
+    padding-block: 14px;
+    border-top: 1px solid var(--tr-rule);
+    width: 100%;
+}
+
+.tr-entry:first-child {
+    border-top: none;
+}
+
+.tr-engine {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--tr-ink-soft);
+    padding-top: 3px;
+    overflow-wrap: anywhere;
+}
+
+.tr-body-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tr-body {
+    font-size: 15px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.tr-retrans {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--tr-ink-soft);
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+/* 加载态：实际大小的平灰条，不闪不跳 */
+.tr-bar {
+    height: 15px;
+    border-radius: 4px;
+    background-color: color-mix(in srgb, var(--font-color) 12%, var(--bg));
+}
+
+/* 失败态：一句话 + 小圆点 + 重试；朱砂只上圆点 */
+.tr-error-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.tr-error-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--accent-cinnabar);
+    flex: none;
+}
+
+.tr-error-msg {
+    cursor: pointer;
+}
+
+.tr-actions {
+    --b-button: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.tr-actions button {
+    background-color: transparent;
+    outline-color: transparent;
+}
+
+.tr-actions button:hover {
+    background-color: var(--hover-color);
+}
+
+/* 幽灵按钮（标题行的「历史」）：无框，悬停显底 */
+.tr-ghost {
+    background-color: transparent;
+    outline-color: transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.tr-ghost:hover {
+    background-color: var(--hover-color);
+}
+
+.tr-ghost .icon {
+    width: 16px;
+}
+
+/* 空态：保留框线与一句话 */
+.tr-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 32px 16px;
+    border: 1px dashed var(--tr-rule);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--tr-ink-soft);
+}
+
+/* ── 翻译历史抽屉 ─────────────────────────────────────────── */
+
+.tr-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+    background: transparent;
+}
+
+.tr-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(380px, 92vw);
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg);
+    border-left: 1px solid var(--border-color);
+    box-shadow: color-mix(in srgb, var(--font-color) 16%, transparent) -10px 0
+        28px;
+    transform: translateX(105%);
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 10;
+}
+
+.tr-drawer.open {
+    transform: none;
+}
+
+.tr-drawer-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 16px 8px;
+}
+
+.tr-drawer-title {
+    margin: 0;
+    font-family: var(--title-font);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.tr-drawer-head button {
+    background-color: transparent;
+    outline-color: transparent;
+}
+
+.tr-drawer-head button:hover {
+    background-color: var(--hover-color);
+}
+
+.tr-history-list {
+    flex: 1;
+    overflow: auto;
+    padding-inline: 16px;
+}
+
+.tr-history-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-block: 10px;
+    padding-inline: 8px;
+    border-top: 1px solid var(--tr-rule);
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.tr-history-item:first-child {
+    border-top: none;
+}
+
+.tr-history-item:hover {
+    background-color: var(--hover-color);
+}
+
+.tr-history-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--tr-ink-soft);
+}
+
+.tr-history-src,
+.tr-history-res {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tr-history-src {
+    font-size: 13px;
+    color: var(--tr-ink-soft);
+}
+
+.tr-history-res {
+    font-size: 14px;
+}
+
+.tr-history-empty {
+    padding: 32px 8px;
+    font-size: 14px;
+    color: var(--tr-ink-soft);
+    text-align: center;
+}
+
+.tr-drawer-foot {
+    padding: 12px 16px 16px;
+}
+
+.tr-clear {
+    color: var(--accent-cinnabar);
+    background-color: transparent;
+    outline-color: transparent;
+}
+
+.tr-clear:hover {
+    background-color: color-mix(in srgb, var(--accent-cinnabar) 10%, var(--bg));
+}
+
+/* ── 焦点可见 ─────────────────────────────────────────────── */
+
+.tr-page :focus-visible,
+.tr-drawer :focus-visible {
+    outline: 2px solid var(--accent-pine);
+    outline-offset: 2px;
+}
+
+/* ── 窄屏（控制中心拖窄 / 小窗）──────────────────────────── */
+
+@media (max-width: 620px) {
+    .tr-page {
+        width: calc(100% - 32px);
+        padding-block-start: 12px;
+    }
+
+    .tr-entry {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    .tr-engine {
+        padding-top: 0;
+    }
+
+    .tr-actions {
+        flex-direction: row;
+        justify-content: flex-end;
+    }
+}

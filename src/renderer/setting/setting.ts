@@ -713,7 +713,7 @@ const s: Partial<settingItem<SettingPath>> = {
     },
     "录屏.自动录制": {
         name: "自动录制",
-        desc: "超级录屏默认开启",
+        desc: "框选后在录屏就绪条上按设定延时自动开始；默认关闭——手动点「开始录制」",
         el: () => xSwitch(),
     },
     "录屏.自动录制延时": {
@@ -723,6 +723,21 @@ const s: Partial<settingItem<SettingPath>> = {
     "录屏.视频比特率": {
         name: "视频比特率",
         el: () => xNumber("Mbps", { min: 1, max: 40, step: 0.5 }),
+    },
+    "录屏.区域直出": {
+        name: "停止后直接导出",
+        desc: "区域录屏停止后按悬浮条选的格式直接转换保存并通知，不进编辑器",
+        el: () => xSwitch(),
+    },
+    "录屏.自动保存": {
+        name: "自动保存",
+        desc: "导出不再弹保存对话框，直接存到视频目录并系统通知；点击通知打开所在文件夹",
+        el: () => xSwitch(),
+    },
+    "录屏.经典": {
+        name: "启用经典录屏",
+        desc: "旧 MediaRecorder + FFmpeg 管线：录制中暂停、摄像头抠背景、倒计时与 mkv/mov/ts 等容器格式。开启后截图工具条的「录屏」走旧管线",
+        el: () => xSwitch(),
     },
     "录屏.提示.键盘.开启": {
         name: "录屏键盘提示",
@@ -1169,6 +1184,11 @@ const s: Partial<settingItem<SettingPath>> = {
                 ],
                 "点击任务栏时的尺寸",
             ),
+    },
+    "控制中心.失焦退下": {
+        name: "失焦退下",
+        desc: "点击软件以外区域时自动最小化回任务栏按钮，别挡着桌面",
+        el: () => xSwitch(),
     },
     自动搜索: {
         name: "自动搜索",
@@ -2291,6 +2311,14 @@ const main: {
             },
             { title: "录制", settings: ["录屏.视频比特率"] },
             {
+                title: "区域录屏",
+                settings: ["录屏.区域直出", "录屏.自动保存"],
+            },
+            {
+                title: "经典录屏（兼容模式）",
+                settings: ["录屏.经典"],
+            },
+            {
                 title: "提示",
                 settings: [
                     "录屏.提示.键盘.开启",
@@ -2414,7 +2442,7 @@ const main: {
             },
             {
                 title: "窗口",
-                settings: ["剪贴板历史.窗口尺寸"],
+                settings: ["剪贴板历史.窗口尺寸", "控制中心.失焦退下"],
             },
             {
                 title: "存储",
@@ -5017,7 +5045,13 @@ function unzip(b: Buffer, targetDir: string) {
         }
         zipfile.readEntry();
         zipfile.on("entry", (entry) => {
-            const filePath = path.join(targetDir, entry.fileName);
+            // 防 zip-slip：resolve 后必须仍落在目标目录内
+            const filePath = path.resolve(targetDir, entry.fileName);
+            const dir = path.resolve(targetDir);
+            if (filePath !== dir && !filePath.startsWith(dir + path.sep)) {
+                p.reject(new Error(`越界压缩包条目: ${entry.fileName}`));
+                return;
+            }
             if (/\/$/.test(entry.fileName)) {
                 fs.mkdirSync(filePath, {
                     recursive: true,

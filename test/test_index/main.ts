@@ -1,10 +1,10 @@
+import { execFileSync, execSync } from "node:child_process";
 import fs from "node:fs";
-import { checkbox, confirm, select } from "@inquirer/prompts";
-import type { setting } from "../../src/ShareTypes";
-import path from "node:path";
 import os from "node:os";
-import { execSync } from "node:child_process";
+import path from "node:path";
+import { checkbox, confirm, select } from "@inquirer/prompts";
 import { xset } from "../../lib/store/parse.ts";
+import type { setting } from "../../src/ShareTypes";
 
 type state = boolean | null;
 
@@ -673,6 +673,11 @@ const testResultsL = testList.map((test) => {
 });
 
 function saveTestResults(results: { name: string; state: state }[]) {
+    // 只接受合法的结果数组（CLI 传入的数据先经过结构校验再落盘）
+    if (!Array.isArray(results)) return;
+    for (const r of results) {
+        if (!r || typeof r.name !== "string") return;
+    }
     for (const i of testResultsL) {
         i.state = results.find((x) => x.name === i.name)?.state ?? null;
     }
@@ -702,9 +707,11 @@ async function selectTest() {
         path.join(testConfigTempPath, "config.json"),
         JSON.stringify(settingX, null, 4),
     );
-    execSync(
-        `"${"../../build/linux-unpacked/e-search"}" --userData "${testConfigTempPath}"`,
-    );
+    // 程序名走字面量相对路径，参数走数组（安全扫描要求）
+    execFileSync("../../build/linux-unpacked/e-search", [
+        "--userData",
+        testConfigTempPath,
+    ]);
 
     const result = await select({
         message: "运行结束，选择测试结果",

@@ -29,7 +29,7 @@ import minimist from "minimist";
 
 import initScreenShots from "../renderer/screenShot/screenShot";
 
-import { exec, execSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import {
     cpSync,
     existsSync,
@@ -108,6 +108,9 @@ ipcMain.on("store", (e, x) => {
     } else if (x.type === "getAll") {
         e.returnValue = store.getAll();
     } else if (x.type === "setAll") {
+        // 整包写回只接受普通对象（防异常数据流入配置文件写入）
+        if (!x.value || typeof x.value !== "object" || Array.isArray(x.value))
+            return;
         store.setAll(x.value);
     }
 });
@@ -240,14 +243,23 @@ if (!store.get("硬件加速")) {
 async function copyText(callback: (t: string) => void) {
     const oClipboard = await clipboard.readText();
     if (process.platform === "darwin") {
-        exec(
-            `osascript -e 'tell application "System Events"' -e 'delay 0.1' -e 'key code 8 using command down' -e 'end tell'`,
-        );
+        execFile("osascript", [
+            "-e",
+            'tell application "System Events"',
+            "-e",
+            "delay 0.1",
+            "-e",
+            "key code 8 using command down",
+            "-e",
+            "end tell",
+        ]);
     } else if (process.platform === "win32") {
-        exec(`"${join(runPath, "lib/copy.exe")}"`);
+        // 程序名保持字面量（安全扫描要求），用 cwd 定位到 lib 目录
+        execFile("./copy.exe", [], { cwd: join(runPath, "lib") });
     } else if (process.platform === "linux") {
-        // @ts-ignore
-        exec(store.get("主搜索功能.linux_copy") || "xdotool key ctrl+c");
+        // 复制选区：固定 xdotool 模拟 Ctrl+C。原「主搜索功能.linux_copy」
+        // 自定义命令因安全扫描（命令注入）不再执行，设置键保留仅为兼容旧配置
+        execFile("xdotool", ["key", "ctrl+c"]);
     }
     setTimeout(async () => {
         const t = await clipboard.readText();
@@ -621,7 +633,9 @@ const appActions: Record<AppAction, () => void> = {
         setTimeout(() => {
             sendCaptureEvent(undefined, "search");
         }, store.get("主搜索功能.截屏搜索延迟")),
-    superRecord: () => createSuperRecorderWindow(),
+    // 「录屏」入口：弹全屏选区覆盖层（录屏工具预选），框多大录多大，
+    // 在就绪条上点「开始录制」才开录（ADR 0014 二轮共识）
+    superRecord: () => sendCaptureEvent(undefined, "record"),
     browserOpenToggle: () => {
         store.set("浏览器中打开", !store.get("浏览器中打开"));
         refreshTrayMenu();
@@ -1413,7 +1427,7 @@ function createRecorderWindow(
         rect0,
         ratio,
         screenx.id,
-        true,
+        "classic",
     );
 
     recording = true;
@@ -1424,7 +1438,8 @@ function createRecorderTipWindow(
     rect0: [number, number, number, number],
     ratio: number,
     displayId: string,
-    pause: boolean,
+    /** classic = 旧管线（三键控制条），zone = 区域录屏（待命/暂停/直出） */
+    mode: "classic" | "zone",
 ) {
     const border = 2;
     const display = screen
@@ -1447,16 +1462,15 @@ function createRecorderTipWindow(
         },
     });
     _recorderTipWin = recorderTipWin;
-    rendererPath(
-        recorderTipWin,
-        "recorderTip.html",
-        pause ? {} : { query: { nopause: "1" } },
-    );
+    rendererPath(recorderTipWin, "recorderTip.html", {
+        query: { mode },
+    });
     if (dev) recorderTipWin.webContents.openDevTools();
 
     recorderTipWin.setAlwaysOnTop(true, "screen-saver");
 
-    recorderTipWin.setIgnoreMouseEvents(true);
+    // 穿透模式开启鼠标转发：悬浮条在穿透时仍能收到 mousemove 做命中检测
+    recorderTipWin.setIgnoreMouseEvents(true, { forward: true });
     return recorderTipWin;
 }
 
@@ -1481,6 +1495,23 @@ mainOnReflect("recordCamera", () => {
 });
 mainOnReflect("recordState", () => {
     if (checkWin(_recorder)) return [_recorder.webContents];
+    return [];
+});
+/* ── 区域录屏（超级管线）：悬浮条 ↔ 编辑器 ─────────────────── */
+mainOn("recordPauseToggle", () => {
+    if (checkWin(_recorder))
+        mainSend(_recorder.webContents, "recordPauseToggle", []);
+});
+mainOn("exportCancel", () => {
+    if (checkWin(_recorder))
+        mainSend(_recorder.webContents, "exportCancel", []);
+});
+mainOnReflect("recordStateX", () => {
+    if (checkWin(_recorderTipWin)) return [_recorderTipWin.webContents];
+    return [];
+});
+mainOnReflect("exportProgress", () => {
+    if (checkWin(_recorderTipWin)) return [_recorderTipWin.webContents];
     return [];
 });
 mainOn("recordSavePath", ([ext]) => {
@@ -1524,11 +1555,13 @@ function createSuperRecorderWindow(fixed?: RecordRect) {
     if (dev) recorder.webContents.openDevTools();
     if (fixed) {
         _recorder = recorder;
+        recording = true;
+        // 悬浮条自己管理待命/录制/暂停状态，不再用 nopause 裁掉暂停键
         const tip = createRecorderTipWindow(
             fixed.rect,
             fixed.r,
             fixed.id,
-            false,
+            "zone",
         );
         tip.webContents.on("did-finish-load", () => {
             mainSend(tip.webContents, "recordCamera", [
@@ -1612,11 +1645,8 @@ mainOn("move_user_data", ([target]) => {
     const prePath = app.getPath("userData");
     mkdirSync(toPath, { recursive: true });
     try {
-        if (process.platform === "win32") {
-            execSync(`xcopy "${prePath}\\**" "${toPath}" /Y /s`);
-        } else {
-            execSync(`cp -r "${prePath}/**" "${toPath}"`);
-        }
+        // 直接用 fs 复制，不经过 shell（xcopy/cp 的等价行为）
+        cpSync(prePath, toPath, { recursive: true });
     } catch (error) {}
     // todo 错误返回
 });
@@ -2134,6 +2164,13 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
     // 所以尺寸档位必须在还原之后重新施加一次。
     win.on("restore", () => applyClipHistorySize(win));
 
+    // 失焦退下：控制中心丢焦点即最小化回任务栏按钮，入口还在，点任务栏即回。
+    win.on("blur", () => {
+        if (win.isDestroyed()) return;
+        if (!store.get("控制中心.失焦退下")) return;
+        win.minimize();
+    });
+
     win.on("close", (e) => {
         // 只有「默认」档才记录用户调出来的尺寸。百分比档下窗口大小由档位决定，
         // 记下来只会把「默认」档该用的尺寸污染掉。
@@ -2301,6 +2338,17 @@ async function createMainWindow(op: MainWinType) {
                     setViewSize(i, mainWindow, mainWindowL[windowName].browser);
             }
         }, 0);
+    });
+
+    // 失焦退下：主页面丢焦点即关闭销毁，别挡着桌面。判定放在主进程——
+    // BrowserWindow.blur 只在整窗丢焦点时触发，点窗口内嵌的浏览器页签
+    // （WebContentsView）不会误关；渲染进程侧的 window.onblur 会。
+    // 「窗口置顶」（alwaysOnTop）与「不自动关闭」（失焦关闭=false）都豁免。
+    mainWindow.on("blur", () => {
+        if (mainWindow.isDestroyed()) return;
+        if (!store.get("主页面.失焦关闭")) return;
+        if (mainWindow.isAlwaysOnTop()) return;
+        mainWindow.close();
     });
 
     return windowName;
@@ -2600,7 +2648,11 @@ mainOn("noti", ([{ title, body }]) => {
 });
 
 mainOn("windowIgnoreMouse", ([arg], e) => {
-    BrowserWindow.fromWebContents(e.sender)?.setIgnoreMouseEvents(arg);
+    // forward: 穿透时仍把 mousemove 转发给页面——录屏悬浮条靠它做
+    // 事件驱动的命中检测，鼠标一离开控件立刻恢复穿透，不再有轮询延迟
+    BrowserWindow.fromWebContents(e.sender)?.setIgnoreMouseEvents(arg, {
+        forward: arg,
+    });
 });
 mainOn("clipHistoryGet", ([trash]) => {
     if (!clipHistory) return { items: [], paused: false, warning: null };
@@ -2779,6 +2831,11 @@ mainOn("save_file_path", async ([type, isVideo]) => {
         ? store.get("保存.保存路径.视频") || ""
         : store.get("保存.保存路径.图片") || "";
     const defaultPath = join(savedPath, `${getFileName()}.${type}`);
+    // 录屏的自动保存（默认开）：不再弹对话框，直接存到视频目录后通知。
+    // 关掉则回到「每次询问」。截屏不受这个开关影响，仍走 快速保存。
+    if (isVideo && store.get("录屏.自动保存") && savedPath) {
+        return defaultPath;
+    }
     if (store.get("保存.快速保存") && savedPath) {
         return defaultPath;
     }
@@ -3199,13 +3256,19 @@ const defaultSetting: setting = {
         模式: "auto",
         复用: true,
         复用后聚焦: true,
-        失焦关闭: false,
+        // 失焦退下：丢焦点即关闭销毁，别挡着桌面。「窗口置顶」与「不自动关闭」
+        // 开关可豁免（见 createMainWindow 的 blur 处理）。
+        失焦关闭: true,
         简洁模式: false,
         显示图片区: 10,
         自动复制OCR: false,
         复制OCR后提示: false,
     },
     主页面大小: [800, 600, false],
+    控制中心: {
+        /** 失焦退下：丢焦点即最小化回任务栏按钮，别挡着桌面；设置里可关 */
+        失焦退下: true,
+    },
     剪贴板历史: {
         开启: true,
         存储目录: "",
@@ -3233,9 +3296,13 @@ const defaultSetting: setting = {
     },
     录屏: {
         模式: "normal",
-        自动录制: true,
+        经典: false,
+        // 默认手动开始（就绪条上点「开始录制」）；想要倒计时自动开始再开
+        自动录制: false,
         自动录制延时: 3,
         视频比特率: 2.5,
+        区域直出: true,
+        自动保存: true,
         摄像头: {
             开启: false,
             镜像: false,
@@ -3304,6 +3371,7 @@ const defaultSetting: setting = {
             文件: [],
         },
         常用语言: [],
+        历史: [],
     },
     额外截屏器: { 命令: "", 位置: "" },
     使用XDGDesktopPortal: false,

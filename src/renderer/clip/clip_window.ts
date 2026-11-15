@@ -588,8 +588,18 @@ function openApp() {
 }
 
 function initRecord() {
-    const mode = toolsX.record.el.gv;
-    if (mode === "normal") {
+    // 单入口「录屏」（ADR 0014）：框选即区域录屏；旧管线降级为设置里的
+    // 「经典录屏（兼容模式）」。兼容旧配置：录屏.模式 === "old" 视同开启。
+    const classic = store.get("录屏.经典") || store.get("录屏.模式") === "old";
+    if (classic) {
+        renderSend("clip_record", [
+            finalRect,
+            String(nowScreenId),
+            mainCanvas.width,
+            mainCanvas.height,
+            ratio,
+        ]);
+    } else {
         renderSend("clip_recordx", [
             {
                 rect: finalRect,
@@ -598,16 +608,6 @@ function initRecord() {
                 h: mainCanvas.height,
                 r: ratio,
             },
-        ]);
-    } else if (mode === "super") {
-        renderSend("clip_recordx", []);
-    } else {
-        renderSend("clip_record", [
-            finalRect,
-            String(nowScreenId),
-            mainCanvas.width,
-            mainCanvas.height,
-            ratio,
         ]);
     }
     toolsX.close.f();
@@ -1422,6 +1422,9 @@ function drawClipRect() {
 
     // 大小栏
     whBar(finalRect);
+
+    // 录屏就绪条跟随选区
+    if (recordReadyOn) positionRecordReady();
 }
 
 /** 画多边形(遮罩) */
@@ -1548,6 +1551,64 @@ function renderClip(e: MouseEvent) {
     }
 }
 
+/** 极简四则运算求值（替代 eval，安全扫描要求）：仅数字与 + - * / ( ) */
+function safeMath(expr: string): number | null {
+    const src = expr.replace(/\s+/g, "");
+    if (!src) return null;
+    const matched = src.match(/\d+(?:\.\d+)?|[+\-*/()]/g);
+    if (!matched || matched.join("") !== src) return null;
+    const tokens = matched;
+    let i = 0;
+    const peek = () => tokens[i];
+    function parseExpr(): number | null {
+        let v = parseTerm();
+        while (peek() === "+" || peek() === "-") {
+            const op = tokens[i++];
+            const r = parseTerm();
+            if (r === null || v === null) return null;
+            v = op === "+" ? v + r : v - r;
+        }
+        return v;
+    }
+    function parseTerm(): number | null {
+        let v = parseFactor();
+        while (peek() === "*" || peek() === "/") {
+            const op = tokens[i++];
+            const r = parseFactor();
+            if (r === null || v === null || (op === "/" && r === 0))
+                return null;
+            v = op === "*" ? v * r : v / r;
+        }
+        return v;
+    }
+    function parseFactor(): number | null {
+        const tk = peek();
+        if (tk === "(") {
+            i++;
+            const v = parseExpr();
+            if (v === null || tokens[i++] !== ")") return null;
+            return v;
+        }
+        if (tk === "-") {
+            i++;
+            const v = parseFactor();
+            return v === null ? null : -v;
+        }
+        if (tk === "+") {
+            i++;
+            return parseFactor();
+        }
+        if (tk && /^\d/.test(tk)) {
+            i++;
+            return Number(tk);
+        }
+        return null;
+    }
+    const v = parseExpr();
+    if (v === null || i !== tokens.length || !Number.isFinite(v)) return null;
+    return v;
+}
+
 // 大小栏
 function whBar(finalRect: rect) {
     const winWidth = window.innerWidth;
@@ -1613,9 +1674,7 @@ function changeWH(el: ElType<HTMLInputElement>) {
         // 排除（数字运算符空格）之外的非法输入
         if (string.match(/[\d+\-*/.\s()]/g)?.length !== string.length)
             return null;
-        // todo sandbox math
-        // biome-ignore lint: 已经过滤（？） 计算math
-        return eval(string);
+        return safeMath(string);
     });
 
     if (l.includes(null)) {
@@ -3162,12 +3221,15 @@ const toolsX: Record<功能, { el: ElType<HTMLElement>; f: () => void }> = {
         f: () => runDing(),
     },
     record: {
-        el: selectEl<"old" | "normal" | "super">(iconEl("record"), t("录屏"), [
-            { name: t("录屏（旧）"), value: "old" },
-            { name: t("普通录屏"), value: "normal" },
-            { name: t("超级录屏"), value: "super" },
-        ]),
-        f: () => initRecord(),
+        el: iconEl("record").attr({ title: "录屏" }),
+        // 超级管线：框选完成后先出就绪条（预设/画质/格式/开始），点「开始录制」才 initRecord；
+        // 经典录屏保持旧流程（它有自己的控制窗与格式选择）
+        f: () => {
+            const classic =
+                store.get("录屏.经典") || store.get("录屏.模式") === "old";
+            if (classic) initRecord();
+            else showRecordReady();
+        },
     },
     long: {
         el: selectEl<"y" | "xy">(iconEl("long_clip"), t("广截屏"), [
@@ -3578,6 +3640,171 @@ let windows: Awaited<ReturnType<typeof screenShots>>["window"];
 let nowMouseE: MouseEvent;
 
 const editorP = { zoom: 1, x: 0, y: 0 };
+
+/* ── 录屏就绪条（ADR 0014 二轮共识）：框选完成后出现在选区下方——
+   尺寸预设（1080p / 720p / 全屏）+ 帧率 / 画质 / 格式 + 「开始录制」/ 取消。
+   框多大、在哪，录出来就是多大、在哪；点「开始录制」才真正开录，
+   「自动录制」设置开启时在这里倒计时。 ── */
+const recordReadyEl = view("x")
+    .attr({ id: "clip_record_ready" })
+    .class(Class.glassBar, Class.gap)
+    .style({ position: "fixed", left: "0", top: "0", display: "none" });
+
+let recordReadyOn = false;
+let recordReadyTimer: NodeJS.Timeout | null = null;
+
+/** 预设尺寸（物理像素，录出来就是这么大）：保持左上角，收缩到屏幕内 */
+function setRecordRect(w: number, h: number) {
+    const width = Math.min(w, mainCanvas.width);
+    const height = Math.min(h, mainCanvas.height);
+    finalRect = [
+        Math.max(0, Math.min(finalRect[0], mainCanvas.width - width)),
+        Math.max(0, Math.min(finalRect[1], mainCanvas.height - height)),
+        width,
+        height,
+    ];
+    drawClip();
+    whBar(finalRect);
+    positionRecordReady();
+}
+
+function positionRecordReady() {
+    const zx = (finalRect[0] + editorP.x) * editorP.zoom;
+    const zy = (finalRect[1] + editorP.y) * editorP.zoom;
+    const zw = finalRect[2] * editorP.zoom;
+    const zh = finalRect[3] * editorP.zoom;
+    const gap = 8;
+    const w = recordReadyEl.el.offsetWidth;
+    const h = recordReadyEl.el.offsetHeight;
+    let x = Math.round(zx + zw / 2 - w / 2);
+    x = Math.max(gap, Math.min(window.innerWidth - w - gap, x));
+    let y = Math.round(zy + zh + gap);
+    // 选区下方放不下就放上方
+    if (y + h > window.innerHeight - gap) y = Math.round(zy - h - gap);
+    y = Math.max(gap, Math.min(window.innerHeight - h - gap, y));
+    recordReadyEl.style({ transform: `translate(${x}px, ${y}px)` });
+}
+
+function hideRecordReady() {
+    recordReadyOn = false;
+    stopRecordReadyCountdown();
+    recordReadyEl.el.style.display = "none";
+}
+
+function showRecordReady() {
+    if (recordReadyOn) return;
+    recordReadyOn = true;
+    recordReadyEl.el.style.display = "";
+    positionRecordReady();
+    startRecordReadyCountdown();
+}
+
+const recordStartBtn = button(txt(t("开始录制"))).on("click", () => {
+    stopRecordReadyCountdown();
+    hideRecordReady();
+    initRecord();
+});
+
+function startRecordReadyCountdown() {
+    if (!store.get("录屏.自动录制")) return;
+    let left = Math.max(0, Math.round(store.get("录屏.自动录制延时")));
+    const tick = () => {
+        if (!recordReadyOn) return;
+        if (left <= 0) {
+            stopRecordReadyCountdown();
+            recordStartBtn.el.click();
+            return;
+        }
+        recordStartBtn.el.textContent = `${left}s`;
+        left--;
+        recordReadyTimer = setTimeout(tick, 1000);
+    };
+    tick();
+}
+
+function stopRecordReadyCountdown() {
+    if (recordReadyTimer) {
+        clearTimeout(recordReadyTimer);
+        recordReadyTimer = null;
+    }
+    recordStartBtn.el.textContent = t("开始录制");
+}
+
+/** 就绪条上的小档位选择器（帧率 / 画质 / 格式），写回对应设置键 */
+function recordOptionSelect(
+    title: string,
+    values: { v: string; name: string }[],
+    current: string,
+    onSet: (v: string) => void,
+) {
+    const s = ele("select").attr({ title });
+    for (const o of values)
+        s.add(ele("option").add(txt(o.name)).attr({ value: o.v }));
+    s.el.value = current;
+    s.on("change", () => onSet(s.el.value));
+    return s;
+}
+
+const recordPresetBtn = (label: string, w: number, h: number) =>
+    button(txt(label)).on("click", () => setRecordRect(w, h));
+
+const recordRateSel = recordOptionSelect(
+    t("帧率"),
+    [
+        { v: "30", name: "30" },
+        { v: "60", name: "60" },
+    ],
+    String(store.get("录屏.转换.帧率") === 60 ? 60 : 30),
+    (v) => store.set("录屏.转换.帧率", Number(v)),
+);
+
+const recordQualityMap: { label: string; mbps: number }[] = [
+    { label: t("高"), mbps: 4 },
+    { label: t("中"), mbps: 2.5 },
+    { label: t("低"), mbps: 1.2 },
+];
+const recordQualitySel = recordOptionSelect(
+    t("画质"),
+    recordQualityMap.map((q) => ({ v: q.label, name: q.label })),
+    recordQualityMap.find((q) => q.mbps === store.get("录屏.转换.码率"))
+        ?.label ?? t("中"),
+    (v) => {
+        const q = recordQualityMap.find((i) => i.label === v);
+        if (q) store.set("录屏.转换.码率", q.mbps);
+    },
+);
+
+const recordFormatSel = recordOptionSelect(
+    t("格式"),
+    [
+        { v: "mp4", name: "mp4" },
+        { v: "webm", name: "webm" },
+        { v: "gif", name: "gif" },
+        { v: "apng", name: "apng" },
+    ],
+    ["mp4", "webm", "gif", "apng"].includes(
+        store.get("录屏.超级录屏.格式") ?? "",
+    )
+        ? (store.get("录屏.超级录屏.格式") as string)
+        : "mp4",
+    (v) => store.set("录屏.超级录屏.格式", v),
+);
+
+recordReadyEl.add([
+    recordPresetBtn(t("1080p"), 1920, 1080),
+    recordPresetBtn(t("720p"), 1280, 720),
+    recordPresetBtn(t("全屏"), mainCanvas.width, mainCanvas.height),
+    recordRateSel,
+    recordQualitySel,
+    recordFormatSel,
+    recordStartBtn,
+    button(iconEl("close"))
+        .attr({ title: t("取消") })
+        .on("click", () => {
+            hideRecordReady();
+        }),
+]);
+recordReadyEl.addInto();
 
 let middleB: PointerEvent | null = null;
 const middleP = { x: 0, y: 0 };

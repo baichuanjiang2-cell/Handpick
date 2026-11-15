@@ -15,14 +15,41 @@ import { Class, cssVar, getImgUrl, initStyle } from "../root/root";
 
 import { renderOn, renderSend, renderSendSync } from "../../../lib/ipc";
 import store from "../../../lib/store/renderStore";
+import { t } from "../../../lib/translate/translate";
 import { typedEntries } from "../../../lib/utils";
 import type { IconType } from "../../iconTypes";
 
-function initRecord() {
-    if (store.get("录屏.提示.键盘.开启") || store.get("录屏.提示.鼠标.开启"))
-        // biome-ignore format:
-        // biome-ignore lint: 部分引入
-        var { uIOhook, UiohookKey } = require("uiohook-napi") as typeof import("uiohook-napi");
+/**
+ * 录屏悬浮条（ADR 0014：录制期间唯一的控制面）。
+ * 两种模式：
+ * - zone（区域录屏，超级管线）：待命 → 倒计时/手动开始 → 录制（暂停/停止）→
+ *   直出转换进度。开始前可改画质档与格式、切区域/全屏。
+ * - classic（经典录屏兼容模式）：只保留 计时 / 暂停 / 停止，状态由旧控制窗管理。
+ * 穿透是事件驱动的：窗口以 forward 模式穿透，收到 mousemove 后按命中结果
+ * 请求交互/穿透，不再轮询全屏命中。
+ */
+const mode: "classic" | "zone" =
+    new URLSearchParams(location.search).get("mode") === "classic"
+        ? "classic"
+        : "zone";
+
+type ZoneState = "recording" | "paused" | "converting";
+
+// 「开始前不录」由截图覆盖层的录屏就绪条负责；悬浮条装载时已在录制中
+let state: ZoneState = "recording";
+const rectOn = true;
+
+/* ── 键鼠可视化（uiohook），可在录制中随时开关 ───────────────── */
+
+type UiohookModule = typeof import("uiohook-napi");
+let uiohook: UiohookModule | null = null;
+let hooksOn = false;
+let hooksAttached = false;
+
+function attachHooks() {
+    if (hooksAttached || !uiohook) return;
+    hooksAttached = true;
+    const { uIOhook, UiohookKey } = uiohook;
 
     function rKey() {
         const posi = store.get("录屏.提示.键盘.位置");
@@ -39,7 +66,6 @@ function initRecord() {
         for (const [i, v] of typedEntries(UiohookKey)) {
             keycode2key[v] = i;
         }
-        console.log(keycode2key);
 
         const map: { [k: string]: string } = {
             Ctrl: "Control",
@@ -72,6 +98,7 @@ function initRecord() {
         let lastKey = null as ReturnType<typeof view> | null;
 
         uIOhook.on("keydown", (e) => {
+            if (!hooksOn) return;
             if (!keyO.includes(e.keycode)) keyO.push(e.keycode);
             if (!lastKey) {
                 lastKey = view();
@@ -86,7 +113,6 @@ function initRecord() {
                     .class("main_key")
                     .data({ k: e.keycode.toString() }),
             );
-            console.log(key);
 
             if (key.top) kbdEl.add(txt(key.top).class("top_key"));
             else {
@@ -104,6 +130,7 @@ function initRecord() {
             }
         });
         uIOhook.on("keyup", (e) => {
+            if (!hooksOn) return;
             keyO = keyO.filter((i) => i !== e.keycode);
             for (const el of (lastKey?.el
                 .querySelectorAll(`[data-k="${e.keycode}"]`)
@@ -121,20 +148,26 @@ function initRecord() {
     }
 
     function rMouse() {
-        const m2m = { 1: mouseKey.left, 3: mouseKey.center, 2: mouseKey.right };
+        const m2m = {
+            1: mouseKey.left,
+            3: mouseKey.center,
+            2: mouseKey.right,
+        };
 
         uIOhook.on("mousedown", (e) => {
+            if (!hooksOn) return;
             const b = e.button as 1 | 2 | 3;
             m2m[b].el.style.backgroundColor = "var(--accent-pine)";
         });
         uIOhook.on("mouseup", (e) => {
+            if (!hooksOn) return;
             const b = e.button as 1 | 2 | 3;
             m2m[b].el.style.backgroundColor = "";
         });
 
         let time_out: NodeJS.Timeout;
         uIOhook.on("wheel", (e) => {
-            console.log(e.direction, e.rotation);
+            if (!hooksOn) return;
             const x = {
                 3: { 1: "wheel_u", "-1": "wheel_d" },
                 4: { 1: "wheel_l", "-1": "wheel_r" },
@@ -149,20 +182,30 @@ function initRecord() {
         });
     }
 
-    if (store.get("录屏.提示.键盘.开启")) rKey();
-    if (store.get("录屏.提示.鼠标.开启")) rMouse();
-
-    if (store.get("录屏.提示.键盘.开启") || store.get("录屏.提示.鼠标.开启"))
-        // @ts-ignore
-        uIOhook.start();
-
-    if (store.get("录屏.提示.光标.开启"))
-        recorderMouseEl.style.display = "flex";
-
-    const mouseStyle = document.createElement("style");
-    mouseStyle.innerHTML = `.mouse{${store.get("录屏.提示.光标.样式").replaceAll(";", " !important;")}}`;
-    document.body.appendChild(mouseStyle);
+    rKey();
+    rMouse();
 }
+
+/** 开 / 关键鼠可视化：写回设置并动态起停全局钩子 */
+function setKeyMouse(on: boolean) {
+    store.set("录屏.提示.键盘.开启", on);
+    store.set("录屏.提示.鼠标.开启", on);
+    (keysEl.parentElement as HTMLElement).style.display = on ? "" : "none";
+    if (on) {
+        if (!uiohook) uiohook = require("uiohook-napi") as UiohookModule;
+        attachHooks();
+        if (!hooksOn) {
+            uiohook.uIOhook.start();
+            hooksOn = true;
+        }
+    } else if (hooksOn && uiohook) {
+        uiohook.uIOhook.stop();
+        hooksOn = false;
+    }
+    kmBtn.el.classList.toggle("km_on", on);
+}
+
+/* ── 摄像头 ───────────────────────────────────────────────── */
 
 async function cameraStreamF(id: string | null) {
     if (id) {
@@ -282,6 +325,8 @@ function drawCamera() {
     }, 10);
 }
 
+/* ── 页面骨架 ─────────────────────────────────────────────── */
+
 function iconEl(src: IconType) {
     return image(getImgUrl(`${src}.svg`), "icon").class("icon");
 }
@@ -316,8 +361,6 @@ const cEl = view()
     .addInto()
     .style({ position: "fixed", left: 0, top: 0, width: "100px" });
 
-// todo 记忆
-
 const videoEl = ele("video").addInto(cEl).el;
 const segEl = view()
     .attr({ id: "seg" })
@@ -339,30 +382,117 @@ cameraSelect.el.on("change", async () => {
 let cameraCanvas: HTMLCanvasElement = document.createElement("canvas");
 let segCanvas: HTMLCanvasElement = document.createElement("canvas");
 
-const stop = button(iconEl("stop_record").style({ filter: "none" })).on(
-    "click",
-    () => {
+/* ── 控制条 ───────────────────────────────────────────────── */
+
+const timeEl = txt("").class(Class.textItem);
+
+const stopBtn = button(iconEl("stop_record").style({ filter: "none" }))
+    .attr({ title: t("停止录制") })
+    .on("click", () => {
         renderSend("recordState", ["stop"]);
-    },
-);
-const pause = button(iconEl("play_pause")).on("click", () => {
-    renderSend("recordState", ["pause"]);
+    });
+
+/** classic：暂停走旧 recordState（旧控制窗内部切换）；zone：发给超级管线 */
+const pauseBtn = button(iconEl("play_pause"))
+    .attr({ title: t("暂停 / 继续") })
+    .on("click", () => {
+        if (mode === "classic") renderSend("recordState", ["pause"]);
+        else renderSend("recordPauseToggle", []);
+    });
+
+const exportCancelBtn = button(iconEl("close"))
+    .attr({ title: t("取消导出") })
+    .on("click", () => {
+        renderSend("exportCancel", []);
+    });
+
+const cameraBtn = button(iconEl("eye"))
+    .attr({ title: t("摄像头") })
+    .on("click", () => {
+        const on = !store.get("录屏.摄像头.开启");
+        store.set("录屏.摄像头.开启", on);
+        renderSend("recordCamera", [on]);
+    });
+
+const kmBtn = button(txt(t("键鼠")))
+    .attr({ title: t("键盘鼠标提示") })
+    .on("click", () => {
+        setKeyMouse(!store.get("录屏.提示.键盘.开启"));
+    });
+
+/** 直出转换进度 */
+const progFill = view().style({
+    height: "100%",
+    width: "0%",
+    borderRadius: "3px",
+    backgroundColor: "var(--accent-pine)",
+    transition: "width 0.2s",
 });
-const timeEl = txt().class(Class.textItem);
+const progTrack = view()
+    .style({
+        width: "72px",
+        height: "6px",
+        borderRadius: "3px",
+        overflow: "hidden",
+        backgroundColor: "color-mix(in srgb, var(--font-color) 15%, var(--bg))",
+    })
+    .add([progFill]);
+const progTxt = txt("").class(Class.textItem);
+
 const controlBar = view("x")
     .class(Class.smallSize, Class.screenBar)
-    .add([stop, pause, timeEl])
     .addInto()
     .style({
         position: "fixed",
         bottom: 0,
         right: 0,
         borderRadius: cssVar("o-padding"),
+        maxWidth: "100%",
     });
 
-if (new URLSearchParams(location.search).has("nopause")) pause.el.remove();
+/** 按状态重建控制条内容 */
+function renderBar() {
+    controlBar.clear();
+    if (mode === "classic") {
+        controlBar.add([stopBtn, pauseBtn, timeEl]);
+        return;
+    }
+    if (state === "recording" || state === "paused") {
+        controlBar.add([timeEl, pauseBtn, stopBtn, cameraBtn, kmBtn]);
+    } else {
+        controlBar.add([progTrack, progTxt, exportCancelBtn]);
+    }
+}
+renderBar();
 
-initRecord();
+/* ── 状态镜像 ─────────────────────────────────────────────── */
+
+renderOn("recordStateX", ([s]) => {
+    if (mode !== "zone") return;
+    state = s;
+    renderBar();
+});
+
+renderOn("exportProgress", ([p]) => {
+    const pct = Math.max(0, Math.min(100, Math.round(p * 100)));
+    progFill.style({ width: `${pct}%` });
+    progTxt.sv(`${pct}%`);
+});
+
+renderOn("recordTime", ([t]) => {
+    timeEl.sv(t);
+});
+
+renderOn("recordCamera", async ([b]) => {
+    if (b) {
+        const id = await getAndSetStream();
+        cameraStreamF(id);
+    } else {
+        cameraStreamF(null);
+    }
+});
+
+/* ── 拖拽 / 缩放摄像头小窗、键鼠初始化 ─────────────────────── */
 
 navigator.mediaDevices.ondevicechange = async () => {
     const id = await getAndSetStream();
@@ -384,24 +514,57 @@ cEl.on("wheel", (e) => {
     cEl.style({ width: `${r.width * (1 + e.deltaY / 600)}px` });
 });
 
-setInterval(() => {
-    const { x, y } = renderSendSync("getMousePos", []).po;
-    recorderMouseEl.style.left = `${x}px`;
-    recorderMouseEl.style.top = `${y}px`;
-    const l = document.elementsFromPoint(x, y);
-    renderSend("windowIgnoreMouse", [
-        !(l.includes(cEl.el) || l.includes(controlBar.el)),
-    ]);
-}, 10);
+if (mode === "classic") {
+    // 经典模式保持旧行为：按设置在装载时起钩子
+    if (store.get("录屏.提示.键盘.开启") || store.get("录屏.提示.鼠标.开启"))
+        setKeyMouse(true);
+} else {
+    // 区域录屏默认不显示键鼠提示，悬浮条上可随时开
+    (keysEl.parentElement as HTMLElement).style.display = "none";
+}
 
-renderOn("recordTime", ([t]) => {
-    timeEl.sv(t);
-});
-renderOn("recordCamera", async ([b]) => {
-    if (b) {
-        const id = await getAndSetStream();
-        cameraStreamF(id);
-    } else {
-        cameraStreamF(null);
+if (store.get("录屏.提示.光标.开启")) recorderMouseEl.style.display = "flex";
+
+const mouseStyle = document.createElement("style");
+mouseStyle.innerHTML = `.mouse{${store.get("录屏.提示.光标.样式").replaceAll(";", " !important;")}}`;
+document.body.appendChild(mouseStyle);
+
+/* ── 穿透：事件驱动命中 ───────────────────────────────────── */
+
+let overUI = false;
+
+function updateHit(x: number, y: number) {
+    const l = document.elementsFromPoint(x, y);
+    const hit = l.includes(controlBar.el) || l.includes(cEl.el);
+    if (hit !== overUI) {
+        overUI = hit;
+        renderSend("windowIgnoreMouse", [!hit]);
+    }
+}
+
+// forward 穿透下 mousemove 仍然到达；交互态下是原生事件。一条监听覆盖两种态。
+window.addEventListener("mousemove", (e) => {
+    updateHit(e.clientX, e.clientY);
+    // 光标可视化跟随（仅开启时可见；窗口外由下面的轮询补）
+    if (store.get("录屏.提示.光标.开启")) {
+        recorderMouseEl.style.left = `${e.clientX}px`;
+        recorderMouseEl.style.top = `${e.clientY}px`;
     }
 });
+
+// 鼠标离开窗口（进全屏区域/另一屏）时可能不再有事件，强制恢复穿透
+document.addEventListener("mouseout", (e) => {
+    if (!e.relatedTarget && overUI) {
+        overUI = false;
+        renderSend("windowIgnoreMouse", [true]);
+    }
+});
+
+// 光标可视化在窗口外仍要跟随：只在开启时轮询全局鼠标位置
+if (store.get("录屏.提示.光标.开启")) {
+    setInterval(() => {
+        const { x, y } = renderSendSync("getMousePos", []).po;
+        recorderMouseEl.style.left = `${x}px`;
+        recorderMouseEl.style.top = `${y}px`;
+    }, 10);
+}

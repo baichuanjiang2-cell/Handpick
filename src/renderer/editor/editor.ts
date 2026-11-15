@@ -2111,13 +2111,16 @@ function countWords() {
 
 /************************************失焦关闭 */
 
+// 失焦退下的判定已移到主进程（createMainWindow 的 blur 处理）：
+// BrowserWindow.blur 只在整窗丢焦点时触发，点窗口内嵌的浏览器页签
+// （WebContentsView）不会误关；渲染进程的 window.onblur 会，旧实现
+// 在开着浏览器页签时点进页签就会把窗口关掉。这里的两个开关继续生效：
+// 「窗口置顶」走 windowTop IPC，主进程用 isAlwaysOnTop() 豁免；
+// 「不自动关闭」写 主页面.失焦关闭，主进程读 store 豁免。
+
 function closeWindow() {
     renderSend("windowClose", []);
 }
-
-window.onblur = () => {
-    if (!navDingSwitch.gv && !navTopSwitch.gv) closeWindow();
-};
 
 bottomEl.el.style.transition = "0s";
 navConciseSwitch.sv(store.get("主页面.简洁模式"));

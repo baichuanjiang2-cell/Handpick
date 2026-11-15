@@ -158,6 +158,14 @@ type Message = {
     recordCamera: (camera: boolean) => void;
     recordState: (state: "stop" | "pause") => void;
     recordSavePath: (ext: string) => void;
+    /** 悬浮条 → 编辑器：切换暂停 / 继续（仅区域录屏） */
+    recordPauseToggle: () => void;
+    /** 编辑器 → 悬浮条：录制状态镜像（开始前不录由覆盖层就绪条负责） */
+    recordStateX: (state: "recording" | "paused" | "converting") => void;
+    /** 编辑器 → 悬浮条：直出转换进度 0~1 */
+    exportProgress: (p: number) => void;
+    /** 悬浮条 → 编辑器：取消直出转换 */
+    exportCancel: () => void;
     dingShare: (
         data:
             | { type: "close"; id: string; closeAll: boolean }
@@ -374,14 +382,18 @@ function isKnownKey(key: unknown): key is keyof Message {
         case "recordCamera":
         case "recordInit":
         case "recordMemWarning":
+        case "recordPauseToggle":
         case "recordSavePath":
         case "recordSavePathReturn":
         case "recordStart":
         case "recordStartStop":
         case "recordState":
+        case "recordStateX":
         case "recordStop":
         case "recordTime":
         case "recorderReady":
+        case "exportCancel":
+        case "exportProgress":
         case "reload":
         case "reloadMainFromSetting":
         case "runPath":

@@ -114,7 +114,9 @@ async function dispaly2screen(
     if (!buffer && _command) {
         const fs = require("node:fs") as typeof import("node:fs");
         // biome-ignore format:
-        const { execSync } = require("node:child_process") as typeof import("node:child_process");
+        const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
+        // 自定义截屏命令的安全执行：把用户配置映射到有限的字面量程序
+        // （文档示例为 flameshot / scrot），参数走数组不经 shell
         const x: ReturnData = {
             bounds: displays?.[0]?.bounds ?? {
                 x: 0,
@@ -130,12 +132,41 @@ async function dispaly2screen(
                 try {
                     const path = commandSavePath;
                     fs.rm(path, () => {});
-                    execSync(command, {});
+                    const [prog, ...args] = command.trim().split(/\s+/);
+                    switch (prog) {
+                        case "scrot":
+                            execFileSync("scrot", args);
+                            break;
+                        case "flameshot":
+                            execFileSync("flameshot", args);
+                            break;
+                        case "maim":
+                            execFileSync("maim", args);
+                            break;
+                        case "import":
+                            execFileSync("import", args);
+                            break;
+                        case "gnome-screenshot":
+                            execFileSync("gnome-screenshot", args);
+                            break;
+                        case "spectacle":
+                            execFileSync("spectacle", args);
+                            break;
+                        case "grim":
+                            execFileSync("grim", args);
+                            break;
+                        default:
+                            throw new Error(
+                                _t(
+                                    "不支持的截屏工具，可选：scrot / flameshot / maim / import / gnome-screenshot / spectacle / grim",
+                                ),
+                            );
+                    }
                     buffer = fs.readFileSync(path);
                     fs.rm(path, () => {});
                 } catch (error) {
                     d({
-                        message: _t("命令运行出错，无法读取截屏，请检查设置"),
+                        message: `${_t("命令运行出错，无法读取截屏，请检查设置")}\n${error instanceof Error ? error.message : ""}`,
                         buttons: [_t("确定")],
                     } as MessageBoxSyncOptions);
 

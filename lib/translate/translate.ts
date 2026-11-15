@@ -9,7 +9,17 @@ const rootDir = path.join(
     "./lib/translate",
 );
 
-const ignore = require(path.join(rootDir, "./ignore.json")) as string[];
+/** 只允许纯文件名的 json（安全扫描要求：拒绝路径穿越与动态 require） */
+function readJson(name: string) {
+    if (!/^[A-Za-z0-9._-]+$/.test(name)) {
+        throw new Error(`非法的翻译资源文件名: ${name}`);
+    }
+    return JSON.parse(
+        fs.readFileSync(path.join(rootDir, path.basename(name)), "utf8"),
+    );
+}
+
+const ignore = readJson("./ignore.json") as string[];
 
 let language = "";
 
@@ -20,7 +30,9 @@ let language = "";
  */
 function parseLan(lan: string) {
     const lans = getLans();
-    return matchFitLan(lan, lans) ?? "zh-HANS";
+    const m = matchFitLan(lan, lans) ?? "zh-HANS";
+    // 双保险：语言码只可能是目录里列出的纯文件名
+    return /^[A-Za-z0-9-]+$/.test(m) ? m : "zh-HANS";
 }
 
 /**
@@ -30,7 +42,7 @@ function parseLan(lan: string) {
 function lan(lan: string | undefined) {
     language = parseLan(lan ?? "");
     if (language !== "zh-HANS") {
-        l = require(path.join(rootDir, `./${language}.json`));
+        l = readJson(`./${language}.json`);
     }
 }
 
@@ -55,11 +67,7 @@ function st(_text: string, map: typeof l) {
     }
     const t = map[id];
     if (!t) {
-        console.log(
-            `%c${id}%c: ${text}`,
-            "color:bluecolor:#00f;background:#ddf",
-            "",
-        );
+        console.log(`%c${id}%c: ${text}`, "color:#00f;background:#ddf", "");
         return null;
     }
     return t;
@@ -78,13 +86,11 @@ function autoSt(_text: string, map: typeof l): string {
 }
 function tLan(text: string, lan: string) {
     if (parseLan(lan) === "zh-HANS") return text;
-    const map = require(
-        path.join(rootDir, `./${parseLan(lan)}.json`),
-    ) as typeof l;
+    const map = readJson(`./${parseLan(lan)}.json`) as typeof l;
     return autoSt(text, map);
 }
 
-const source = require(path.join(rootDir, "./source.json"));
+const source = readJson("./source.json");
 let l: Record<string, string>;
 
 function getLans() {

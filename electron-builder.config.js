@@ -42,7 +42,14 @@ async function downloadUnzip(url, targetDir) {
             zipfile.readEntry();
             console.log(`开始解压 ${fileName} 到 ${targetDir}`);
             zipfile.on("entry", (entry) => {
-                const filePath = path.join(targetDir, entry.fileName);
+                // 防 zip-slip：resolve 后必须仍落在目标目录内
+                const filePath = path.resolve(targetDir, entry.fileName);
+                const dir = path.resolve(targetDir);
+                if (filePath !== dir && !filePath.startsWith(dir + path.sep)) {
+                    console.warn(`跳过越界压缩包条目: ${entry.fileName}`);
+                    zipfile.readEntry();
+                    return;
+                }
                 if (/\/$/.test(entry.fileName)) {
                     ensureDir(filePath);
                     zipfile.readEntry();

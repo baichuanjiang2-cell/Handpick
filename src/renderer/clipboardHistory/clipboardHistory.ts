@@ -173,8 +173,8 @@ const featureGroups: [string, FeatureItem[]][] = [
         [
             {
                 action: "superRecord",
-                label: "超级录屏",
-                icon: "start_record",
+                label: "录屏",
+                icon: "record",
                 group: "录屏与贴图",
                 size: "big",
             },

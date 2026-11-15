@@ -1086,7 +1086,8 @@ renderOn("recordInit", async ([sourceId, r, screen_w, screen_h]) => {
         reader.onloadend = (_e) => {
             const baseName = String(clipName);
             const baseName2 = `${baseName}.${type}`;
-            const p = path.join(tmpPath, baseName);
+            // baseName 是计数器数字，basename 拼接拒绝任何穿越（安全扫描要求）
+            const p = path.join(tmpPath, path.basename(baseName));
             const crop =
                 type === "gif" && store.get("录屏.转换.高质量gif")
                     ? `[in]crop=${rect[2]}:${rect[3]}:${rect[0]}:${rect[1]},split[split1][split2];[split1]palettegen=stats_mode=single[pal];[split2][pal]paletteuse=new=1`

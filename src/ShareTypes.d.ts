@@ -291,6 +291,10 @@ export interface setting {
          */
         窗口尺寸: "默认" | "50%" | "75%" | "100%";
     };
+    控制中心: {
+        /** 失焦退下：点击软件以外区域（丢焦点）时自动最小化回任务栏按钮 */
+        失焦退下: boolean;
+    };
     时间格式: string;
     硬件加速: boolean;
     更新: {
@@ -300,10 +304,17 @@ export interface setting {
         忽略版本: string;
     };
     录屏: {
+        /** "old" = 经典录屏（兼容模式），其余值都走超级录屏管线；旧版遗留，新开关是 经典 */
         模式: "old" | "normal" | "super";
+        /** 经典录屏（兼容模式）：录屏入口走旧 MediaRecorder + FFmpeg 管线 */
+        经典: boolean;
         自动录制: boolean;
         自动录制延时: number;
         视频比特率: number;
+        /** 区域录屏停止后直接导出保存，不进编辑器 */
+        区域直出: boolean;
+        /** 录屏导出不再弹保存对话框，直接存到视频目录并通知 */
+        自动保存: boolean;
         摄像头: {
             开启: boolean;
             设备: string;
@@ -385,6 +396,14 @@ export interface setting {
             fetch: myFetch[];
         };
         常用语言: string[];
+        /** 翻译历史，最新在前，最多保留 200 条；点一条恢复输入与语言方向 */
+        历史: {
+            time: number;
+            from: string;
+            to: string;
+            source: string;
+            results: { engine: string; text: string }[];
+        }[];
     };
     额外截屏器: {
         命令: string;
