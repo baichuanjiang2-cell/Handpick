@@ -14,7 +14,6 @@ import {
     app,
     clipboard,
     crashReporter,
-    desktopCapturer,
     dialog,
     globalShortcut,
     ipcMain,
@@ -48,7 +47,7 @@ import url from "node:url";
 import main, { matchFitLan } from "xtranslator";
 import { githubMirrorList } from "../../lib/github_mirror";
 import { mainOn, mainOnReflect, mainSend } from "../../lib/ipc";
-import type { AppAction, RecordRect } from "../../lib/ipc";
+import type { AppAction } from "../../lib/ipc";
 import Store from "../../lib/store/store";
 import time_format from "../../lib/time_format";
 import { getLans, lan, t } from "../../lib/translate/translate";
@@ -64,7 +63,7 @@ import type {
 import ClipboardHistory from "./clipboardHistory";
 
 const runPath = join(resolve(__dirname, ""), "../../");
-const tmpDir = join(tmpdir(), "eSearch");
+const tmpDir = join(tmpdir(), "HandPick");
 
 // 自定义用户路径
 try {
@@ -91,6 +90,24 @@ try {
         // mkdir 失败就让异常落到下面的 catch：宁可用默认目录，也不要启动就弹错。
         mkdirSync(userDataPath, { recursive: true });
         app.setPath("userData", userDataPath);
+    } else {
+        // 品牌更名（ADR 0016）后默认 userData 目录从 %APPDATA%\eSearch 变为
+        // %APPDATA%\HandPick。首次启动（新目录还没有 config.json）且旧目录仍有
+        // 数据时整体搬迁，配置、剪贴板历史、加密密钥照旧继承。
+        const newPath = app.getPath("userData");
+        const oldPath = join(dirname(newPath), "eSearch");
+        if (
+            !existsSync(join(newPath, "config.json")) &&
+            existsSync(join(oldPath, "config.json"))
+        ) {
+            try {
+                cpSync(oldPath, newPath, { recursive: true });
+                console.log(`userData migrated: ${oldPath} -> ${newPath}`);
+            } catch (error) {
+                // 迁移失败不能让启动崩掉，但必须留痕：否则用户会在毫不知情中失去数据继承
+                console.error("userData migration failed:", error);
+            }
+        }
     }
 } catch (e) {}
 
@@ -120,7 +137,7 @@ let /** 是否开启开发模式 */ dev: boolean;
 if (
     process.argv.includes("-d") ||
     import.meta.env.DEV ||
-    process.env.ESEARCH_DEV ||
+    process.env.HANDPICK_DEV ||
     store.get("dev")
 ) {
     dev = true;
@@ -633,9 +650,6 @@ const appActions: Record<AppAction, () => void> = {
         setTimeout(() => {
             sendCaptureEvent(undefined, "search");
         }, store.get("主搜索功能.截屏搜索延迟")),
-    // 「录屏」入口：弹全屏选区覆盖层（录屏工具预选），框多大录多大，
-    // 在就绪条上点「开始录制」才开录（ADR 0014 二轮共识）
-    superRecord: () => sendCaptureEvent(undefined, "record"),
     browserOpenToggle: () => {
         store.set("浏览器中打开", !store.get("浏览器中打开"));
         refreshTrayMenu();
@@ -675,7 +689,7 @@ const appActions: Record<AppAction, () => void> = {
     feedback: () => {
         shell.openExternal(
             feedbackUrl({
-                title: `[${clipHistoryWindow?.getTitle()?.replace("eSearch - ", "") ?? "……界面"}] 存在……问题`,
+                title: `[${clipHistoryWindow?.getTitle()?.replace(/^HandPick[ -]/, "")?.replace(/^eSearch[ -]/, "") ?? "……界面"}] 存在……问题`,
             }),
         );
     },
@@ -753,7 +767,7 @@ process.on("unhandledRejection", (e) => {
 
 app.whenReady().then(() => {
     console.log(
-        `eSearch ${app.getVersion()} 启动\n项目地址：https://github.com/baichuanjiang2-cell/eSearch-paste`,
+        `HandPick ${app.getVersion()} 启动\n项目地址：https://github.com/baichuanjiang2-cell/HandPick`,
     );
 
     crashReporter.start({ uploadToServer: false });
@@ -1018,7 +1032,7 @@ function feedbackUrl(op?: {
     more?: string;
 }) {
     const url = new URL(
-        "https://github.com/baichuanjiang2-cell/eSearch-paste/issues/new?assignees=&labels=bug&projects=&template=bug_report.yaml",
+        "https://github.com/baichuanjiang2-cell/HandPick/issues/new?assignees=&labels=bug&projects=&template=bug_report.yaml",
     );
     url.searchParams.append("title", op?.title || "...存在...的错误");
     url.searchParams.append("main", op?.main || "");
@@ -1038,7 +1052,7 @@ function feedbackUrl2(op?: {
     main?: string;
 }) {
     const url = new URL(
-        "https://github.com/baichuanjiang2-cell/eSearch-paste/issues/new?template=feature_request.yaml&labels=新需求",
+        "https://github.com/baichuanjiang2-cell/HandPick/issues/new?template=feature_request.yaml&labels=新需求",
     );
     if (op?.title) url.searchParams.append("title", op.title);
     url.searchParams.append("main", op?.main || "");
@@ -1210,14 +1224,6 @@ mainOn("clip_mac_app", async () => {
     }
     return { canceled: x.canceled, filePaths: x.filePaths };
 });
-mainOn("clip_record", ([rect, id, w, h, r]) => {
-    createRecorderWindow(rect, {
-        id: id,
-        w: w,
-        h: h,
-        r: r,
-    });
-});
 mainOn("getMousePos", (_, e) => {
     const w = BrowserWindow.fromWebContents(e.sender)?.getBounds();
     const p = screen.getCursorScreenPoint();
@@ -1231,9 +1237,6 @@ mainOn("clip_translate", ([arg]) => {
 });
 mainOn("clip_editor", ([arg]) => {
     createPhotoEditor(arg);
-});
-mainOn("clip_recordx", ([opt]) => {
-    createSuperRecorderWindow(opt);
 });
 
 /**
@@ -1347,240 +1350,6 @@ function lianPai(d = store.get("连拍.间隔"), maxN = store.get("连拍.数"))
     }
 }
 
-let recording = false;
-const recorderWinW = 264;
-const recorderWinH = 24;
-
-let _recorder: BrowserWindow;
-let _recorderTipWin: BrowserWindow;
-function createRecorderWindow(
-    rect0: [number, number, number, number],
-    screenx: { id: string; w: number; h: number; r: number },
-) {
-    const s = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-    const ratio = screenx.r;
-    const p = {
-        x: screen.getCursorScreenPoint().x,
-        y: screen.getCursorScreenPoint().y,
-    };
-    const rect = rect0.map((v) => v / ratio);
-    const sx = s.bounds.x;
-    const sy = s.bounds.y;
-    const sx1 = sx + s.bounds.width;
-    const sy1 = sy + s.bounds.height;
-    const hx = sx + rect[0] + rect[2] / 2;
-    const hy = sy + rect[1] + rect[3] / 2;
-    const w = recorderWinW;
-    const h = recorderWinH;
-    let x = p.x <= hx ? sx + rect[0] : sx + rect[0] + rect[2] - w;
-    let y = p.y <= hy ? sy + rect[1] - h - 8 : sy + rect[1] + rect[3] + 8;
-    x = Math.max(x, sx);
-    x = Math.min(x, sx1 - w);
-    y = Math.max(y, sy);
-    y = Math.min(y, sy1 - h);
-    x = Math.round(x);
-    y = Math.round(y);
-    const recorder = new BrowserWindow({
-        ...baseWinConfig(),
-        // 纸墨自绘标题栏，去掉系统边框
-        frame: false,
-    });
-    _recorder = recorder;
-    rendererPath(recorder, "recorder.html");
-    if (dev) recorder.webContents.openDevTools();
-
-    recorder.on("close", () => {
-        store.set("录屏.大小.x", recorder.getBounds().x);
-        store.set("录屏.大小.y", recorder.getBounds().y);
-        try {
-            recorderTipWin.close();
-        } catch (error) {}
-    });
-
-    recorder.on("resize", () => {
-        if (recorder.isResizable()) {
-            store.set("录屏.大小.width", recorder.getBounds().width);
-            store.set("录屏.大小.height", recorder.getBounds().height);
-        }
-    });
-
-    mainOn("recorderReady", () => {
-        desktopCapturer.getSources({ types: ["screen"] }).then((sources) => {
-            let dId = sources.find((s) => s.display_id === screenx.id)?.id;
-            if (!dId) dId = sources[0].id;
-            mainSend(recorder.webContents, "recordInit", [
-                dId,
-                rect0,
-                screenx.w,
-                screenx.h,
-            ]);
-        });
-    });
-
-    globalShortcut.register("Super+R", () => {
-        if (!recorder.isDestroyed()) {
-            mainSend(recorder.webContents, "recordStartStop", []);
-        }
-    });
-
-    const recorderTipWin = createRecorderTipWindow(
-        rect0,
-        ratio,
-        screenx.id,
-        "classic",
-    );
-
-    recording = true;
-}
-
-/** 录屏提示覆盖层：框选区域的虚线、键盘鼠标提示、摄像头、悬浮控制条 */
-function createRecorderTipWindow(
-    rect0: [number, number, number, number],
-    ratio: number,
-    displayId: string,
-    /** classic = 旧管线（三键控制条），zone = 区域录屏（待命/暂停/直出） */
-    mode: "classic" | "zone",
-) {
-    const border = 2;
-    const display = screen
-        .getAllDisplays()
-        .find((d) => String(d.id) === displayId);
-    const rect1 = rect0.map((v) => Math.round(v / ratio));
-    const recorderTipWin = new BrowserWindow({
-        x: (display?.bounds.x ?? 0) + rect1[0] - border,
-        y: (display?.bounds.y ?? 0) + rect1[1] - border,
-        width: rect1[2] + border * 2,
-        height: rect1[3] + border * 2 + 24,
-        transparent: true,
-        frame: false,
-        autoHideMenuBar: true,
-        resizable: process.platform === "linux",
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            sandbox: false,
-        },
-    });
-    _recorderTipWin = recorderTipWin;
-    rendererPath(recorderTipWin, "recorderTip.html", {
-        query: { mode },
-    });
-    if (dev) recorderTipWin.webContents.openDevTools();
-
-    recorderTipWin.setAlwaysOnTop(true, "screen-saver");
-
-    // 穿透模式开启鼠标转发：悬浮条在穿透时仍能收到 mousemove 做命中检测
-    recorderTipWin.setIgnoreMouseEvents(true, { forward: true });
-    return recorderTipWin;
-}
-
-function checkWin(win: BrowserWindow) {
-    return win && !win.isDestroyed();
-}
-
-mainOn("recordStop", () => {
-    if (checkWin(_recorderTipWin)) _recorderTipWin.close();
-    recording = false;
-});
-mainOn("recordStart", () => {
-    if (checkWin(_recorder)) _recorder.minimize();
-});
-mainOnReflect("recordTime", () => {
-    if (checkWin(_recorderTipWin)) return [_recorderTipWin.webContents];
-    return [];
-});
-mainOnReflect("recordCamera", () => {
-    if (checkWin(_recorderTipWin)) return [_recorderTipWin.webContents];
-    return [];
-});
-mainOnReflect("recordState", () => {
-    if (checkWin(_recorder)) return [_recorder.webContents];
-    return [];
-});
-/* ── 区域录屏（超级管线）：悬浮条 ↔ 编辑器 ─────────────────── */
-mainOn("recordPauseToggle", () => {
-    if (checkWin(_recorder))
-        mainSend(_recorder.webContents, "recordPauseToggle", []);
-});
-mainOn("exportCancel", () => {
-    if (checkWin(_recorder))
-        mainSend(_recorder.webContents, "exportCancel", []);
-});
-mainOnReflect("recordStateX", () => {
-    if (checkWin(_recorderTipWin)) return [_recorderTipWin.webContents];
-    return [];
-});
-mainOnReflect("exportProgress", () => {
-    if (checkWin(_recorderTipWin)) return [_recorderTipWin.webContents];
-    return [];
-});
-mainOn("recordSavePath", ([ext]) => {
-    const savedPath = store.get("保存.保存路径.视频") || "";
-    dialog
-        .showSaveDialog({
-            title: t("选择要保存的位置"),
-            defaultPath: savedPath
-                ? join(savedPath, `${getFileName()}.${ext}`)
-                : undefined,
-            filters: [{ name: t("视频"), extensions: [ext] }],
-        })
-        .then(async (x) => {
-            if (x.filePath) {
-                let fpath = x.filePath;
-                if (!fpath.includes(".")) {
-                    fpath += `.${ext}`;
-                }
-                if (checkWin(_recorder))
-                    mainSend(_recorder.webContents, "recordSavePathReturn", [
-                        fpath,
-                    ]);
-            } else {
-                new Notification({
-                    title: `${app.name} ${t("保存视频失败")}`,
-                    body: t("用户已取消保存"),
-                    icon: join(runPath, "assets/logo/64x64.png"),
-                }).show();
-            }
-        });
-});
-
-function createSuperRecorderWindow(fixed?: RecordRect) {
-    const recorder = new BrowserWindow({
-        ...baseWinConfig(),
-        // 纸墨自绘标题栏，去掉系统边框
-        frame: false,
-    });
-    recorder.minimize();
-    rendererPath(recorder, "videoEditor.html");
-    if (dev) recorder.webContents.openDevTools();
-    if (fixed) {
-        _recorder = recorder;
-        recording = true;
-        // 悬浮条自己管理待命/录制/暂停状态，不再用 nopause 裁掉暂停键
-        const tip = createRecorderTipWindow(
-            fixed.rect,
-            fixed.r,
-            fixed.id,
-            "zone",
-        );
-        tip.webContents.on("did-finish-load", () => {
-            mainSend(tip.webContents, "recordCamera", [
-                store.get("录屏.摄像头.开启"),
-            ]);
-        });
-        recorder.on("close", () => {
-            if (!tip.isDestroyed()) tip.close();
-        });
-    }
-    recorder.webContents.on("did-finish-load", () => {
-        desktopCapturer.getSources({ types: ["screen"] }).then((sources) => {
-            let dId = sources[0].id;
-            if (fixed)
-                dId = sources.find((s) => s.display_id === fixed.id)?.id ?? dId;
-            mainSend(recorder.webContents, "superRecorderInit", [dId, fixed]);
-        });
-    });
-}
 /** 把设置里的剪贴板历史配置同步到运行中的实例 */
 function applyClipHistorySetting() {
     if (!clipHistory) return;
@@ -1655,7 +1424,7 @@ mainOn("getAutoStart", () => {
         try {
             const autoStartPath = join(
                 homedir(),
-                ".config/autostart/e-search.desktop",
+                ".config/autostart/handpick.desktop",
             );
             return existsSync(autoStartPath);
         } catch (error) {
@@ -1668,10 +1437,10 @@ mainOn("setAutoStart", ([arg1]) => {
     if (process.platform === "linux") {
         try {
             const autoStartDir = join(homedir(), ".config/autostart");
-            const autoStartFile = join(autoStartDir, "e-search.desktop");
+            const autoStartFile = join(autoStartDir, "handpick.desktop");
             if (arg1) {
                 mkdirSync(autoStartDir, { recursive: true });
-                cpSync(join(runPath, "assets/e-search.desktop"), autoStartFile);
+                cpSync(join(runPath, "assets/handpick.desktop"), autoStartFile);
             } else {
                 rmSync(autoStartFile, { recursive: true });
             }
@@ -2383,7 +2152,7 @@ async function createSettingWindow() {
 
 async function createHelpWindow() {
     shell.openExternal(
-        "https://github.com/baichuanjiang2-cell/eSearch-paste/blob/master/docs/use/readme.md",
+        "https://github.com/baichuanjiang2-cell/HandPick/blob/master/docs/use/readme.md",
     );
 }
 
@@ -2648,7 +2417,7 @@ mainOn("noti", ([{ title, body }]) => {
 });
 
 mainOn("windowIgnoreMouse", ([arg], e) => {
-    // forward: 穿透时仍把 mousemove 转发给页面——录屏悬浮条靠它做
+    // forward: 穿透时仍把 mousemove 转发给页面，供悬浮控件做
     // 事件驱动的命中检测，鼠标一离开控件立刻恢复穿透，不再有轮询延迟
     BrowserWindow.fromWebContents(e.sender)?.setIgnoreMouseEvents(arg, {
         forward: arg,
@@ -2826,36 +2595,23 @@ mainOn("windowShow", (_, e) => {
     BrowserWindow.fromWebContents(e.sender)?.show();
 });
 
-mainOn("save_file_path", async ([type, isVideo]) => {
-    const savedPath = isVideo
-        ? store.get("保存.保存路径.视频") || ""
-        : store.get("保存.保存路径.图片") || "";
+mainOn("save_file_path", async ([type]) => {
+    const savedPath = store.get("保存.保存路径.图片") || "";
     const defaultPath = join(savedPath, `${getFileName()}.${type}`);
-    // 录屏的自动保存（默认开）：不再弹对话框，直接存到视频目录后通知。
-    // 关掉则回到「每次询问」。截屏不受这个开关影响，仍走 快速保存。
-    if (isVideo && store.get("录屏.自动保存") && savedPath) {
-        return defaultPath;
-    }
     if (store.get("保存.快速保存") && savedPath) {
         return defaultPath;
     }
     const x = await dialog.showSaveDialog({
         title: t("选择要保存的位置"),
         defaultPath: savedPath ? defaultPath : undefined,
-        filters: [
-            { name: isVideo ? t("视频") : t("图像"), extensions: [type] },
-        ],
+        filters: [{ name: t("图像"), extensions: [type] }],
     });
     return x.filePath;
 });
 
-mainOn("ok_save", ([arg, isVideo]) => {
+mainOn("ok_save", ([arg]) => {
     noti(arg);
-    if (isVideo) {
-        store.set("保存.保存路径.视频", dirname(arg));
-    } else {
-        store.set("保存.保存路径.图片", dirname(arg));
-    }
+    store.set("保存.保存路径.图片", dirname(arg));
 });
 
 mainOn("selectPath", async ([path, p]) => {
@@ -2890,13 +2646,6 @@ mainOn("feedbackFeature", ([arg]) => {
 
 mainOn("getScreens", () => {
     return screen.getAllDisplays();
-});
-
-mainOn("recordMemWarning", () => {
-    new Notification({
-        title: `${app.name} ${t("录屏内存不足")}`,
-        body: t("将自动结束录屏"),
-    }).show();
 });
 
 mainOn("getLogs", () => {
@@ -2938,7 +2687,6 @@ const defaultSetting: setting = {
         QR: "",
         open: "",
         ding: "",
-        record: "",
         long: "",
         copy: "",
         save: "",
@@ -2953,7 +2701,6 @@ const defaultSetting: setting = {
         QR: "",
         open: "",
         ding: "",
-        record: "",
         long: "",
         copy: isMac ? "Command+C" : "Control+C",
         save: isMac ? "Command+S" : "Control+S",
@@ -3068,7 +2815,6 @@ const defaultSetting: setting = {
             "QR",
             "open",
             "ding",
-            "record",
             "long",
             "translate",
             "editor",
@@ -3199,11 +2945,11 @@ const defaultSetting: setting = {
     },
     保存: {
         默认格式: "png",
-        保存路径: { 图片: "", 视频: "" },
+        保存路径: { 图片: "" },
         快速保存: false,
         保存并复制: false,
     },
-    保存名称: { 前缀: "eSearch-", 时间: "YYYY-MM-DD-HH-mm-ss-S", 后缀: "" },
+    保存名称: { 前缀: "HandPick-", 时间: "YYYY-MM-DD-HH-mm-ss-S", 后缀: "" },
     框选后默认操作: "no",
     快速截屏: { 模式: "clip", 路径: "" },
     引擎: {
@@ -3294,67 +3040,6 @@ const defaultSetting: setting = {
         模式: "小版本",
         忽略版本: "",
     },
-    录屏: {
-        模式: "normal",
-        经典: false,
-        // 默认手动开始（就绪条上点「开始录制」）；想要倒计时自动开始再开
-        自动录制: false,
-        自动录制延时: 3,
-        视频比特率: 2.5,
-        区域直出: true,
-        自动保存: true,
-        摄像头: {
-            开启: false,
-            镜像: false,
-            设备: "",
-            背景: {
-                模式: "none",
-                模糊: 40,
-                imgUrl: "",
-                videoUrl: "",
-                fit: "cover",
-            },
-        },
-        音频: {
-            设备列表: [],
-            启用系统内录: true,
-        },
-        转换: {
-            格式: "webm",
-            码率: 2.5,
-            帧率: 30,
-            其他: "",
-            高质量gif: false,
-            分段: 10,
-        },
-        提示: {
-            键盘: {
-                开启: false,
-                位置: { x: "+", y: "+", offsetX: 4, offsetY: 4 },
-                大小: 1,
-            },
-            鼠标: {
-                开启: false,
-            },
-            光标: {
-                开启: false,
-                样式: "width: 24px;\nheight: 24px;\nborder-radius: 50%;\nbackground-color: #ff08;",
-            },
-        },
-        大小: {
-            x: 0,
-            y: 0,
-            width: 800,
-            height: 600,
-        },
-        超级录屏: {
-            编码选择: "性能优先",
-            关键帧间隔: 150,
-            格式: "gif",
-            缩放: 2,
-            导出后关闭: false,
-        },
-    },
     屏幕翻译: {
         type: "ding",
         dTime: 3000,
@@ -3400,7 +3085,6 @@ const defaultSetting: setting = {
 };
 try {
     defaultSetting.保存.保存路径.图片 = app.getPath("pictures");
-    defaultSetting.保存.保存路径.视频 = app.getPath("videos");
 } catch (e) {
     console.error(e);
 }
@@ -3414,6 +3098,11 @@ function matchBestLan() {
 
 // 增加设置项后，防止undefined
 function fixSettingTree() {
+    store.remove("录屏");
+    store.remove("保存.保存路径.视频");
+    store.remove("全局工具快捷键.record");
+    store.remove("工具快捷键.record");
+    store.removeArrayValue("工具栏.功能", "record");
     paperInkThemeTrans();
     clipHistoryWinSizeTrans();
     if (store.get("设置版本") === app.getVersion() && !dev) return;
@@ -3570,7 +3259,7 @@ function checkUpdate(s手动检查?: boolean) {
     const version = store.get("设置版本");
     const m = store.get("更新.模式");
     fetch(
-        "https://api.github.com/repos/baichuanjiang2-cell/eSearch-paste/releases",
+        "https://api.github.com/repos/baichuanjiang2-cell/HandPick/releases",
     )
         .then((v) => v.json())
         .then((re) => {
@@ -3615,7 +3304,7 @@ function checkUpdate(s手动检查?: boolean) {
 function showVersion(arg?: { v: string; url: string } | "err") {
     let title = "";
     let b = "";
-    let url = "https://github.com/baichuanjiang2-cell/eSearch-paste/releases";
+    let url = "https://github.com/baichuanjiang2-cell/HandPick/releases";
     if (arg) {
         if (arg === "err") {
             title = t("无法检查更新");

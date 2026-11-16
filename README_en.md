@@ -1,15 +1,21 @@
-# eSearch-paste
+<div align="center">
+
+<img src="assets/logo/128x128.png" width="96" alt="HandPick icon"/>
+
+# HandPick-信手拈来
 
 ([中文](README.md) | English)
 
-[![license](https://img.shields.io/github/license/xushengfeng/eSearch)](LICENSE)
-[![release](https://img.shields.io/github/v/release/baichuanjiang2-cell/eSearch-paste?label=release)](https://github.com/baichuanjiang2-cell/eSearch-paste/releases/latest)
+[![license](https://img.shields.io/github/license/baichuanjiang2-cell/HandPick)](LICENSE)
+[![release](https://img.shields.io/github/v/release/baichuanjiang2-cell/HandPick?label=release)](https://github.com/baichuanjiang2-cell/HandPick/releases/latest)
 
-**A personal fork of [eSearch](https://github.com/xushengfeng/eSearch).** All upstream features are kept (screenshot, OCR, search, translation, pin-to-desktop, screen translation, reverse image search, scrolling capture, screen recording). On top of that, this fork adds two things:
+</div>
+
+**A personal fork of [eSearch](https://github.com/xushengfeng/eSearch), named HandPick.** All upstream features are kept (screenshot, OCR, search, translation, pin-to-desktop, screen translation, reverse image search, scrolling capture). On top of that, this fork adds two things:
 
 **Clipboard history** — a searchable record of everything you've copied (text, images, file paths). Search it, edit entries in place, open images full-size, and pin entries (pinned ones get a filled gold star).
 
-**The Control Center** — clicking the taskbar button opens the app's shell window: a sidebar plus a top bar, with the clipboard history as the default page. Screenshot, pin-to-desktop, recording, OCR and every other feature live in the sidebar's tool groups, one click away. Opening the app = clicking the taskbar button, and everything is there.
+**The Control Center** — clicking the taskbar button opens the app's shell window: a sidebar plus a top bar, with the clipboard history as the default page. Screenshot, pin-to-desktop, OCR and every other feature live in the sidebar's tool groups, one click away. Opening the app = clicking the taskbar button, and everything is there.
 
 > Upstream has explicitly declined clipboard-manager features ([issue #317](https://github.com/xushengfeng/eSearch/issues/317) and [PR #515](https://github.com/xushengfeng/eSearch/pull/515) are both closed), so this part will not be contributed back and is maintained here only.
 
@@ -19,20 +25,20 @@
 
 ## Download
 
-Grab either file from [Releases](https://github.com/baichuanjiang2-cell/eSearch-paste/releases/latest):
+Grab either file from [Releases](https://github.com/baichuanjiang2-cell/HandPick/releases/latest):
 
 | File | Size | Notes |
 | --- | --- | --- |
-| `esearch_paste-15.7.1-win32-x64.exe` | ~186 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
-| `esearch_paste-15.7.1-win32-x64.zip` | ~246 MB | Portable — unzip and run |
+| `handpick-15.7.3-win32-x64.exe` | ~186 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
+| `handpick-15.7.3-win32-x64.zip` | ~246 MB | Portable — unzip and run |
 
-The `esearch_paste-` prefix exists only to avoid confusion with the official build (`eSearch-<version>-win32-x64.exe`). It changes **the file name only** — the internal app name, install location and data directory are unchanged.
+The `handpick-` prefix exists to avoid confusion with the official build (`eSearch-<version>-win32-x64.exe`). As of 15.7.3 the app itself is fully rebranded (separate appId and data directory, see [ADR 0016](docs/adr/0016-rebrand-to-handpick.md)) — HandPick and the upstream official build are two independent applications and will not overwrite each other.
 
 Windows may show the blue "Windows protected your PC" warning; click **More info → Run anyway**. The app is unsigned (code-signing certificates cost hundreds of dollars a year), which is normal for small personal tools and does not mean it is malicious.
 
-**Upgrading does not lose data.** The installer and the from-source build share the same data directory, `%APPDATA%\eSearch`.
+**Upgrading does not lose data.** The installer and the from-source build share the same data directory, `%APPDATA%\HandPick`. Upgrading from the old fork build (data in `%APPDATA%\eSearch`): on first launch HandPick automatically migrates the old data over — no manual backup needed.
 
-> ⚠️ This fork shares the same application identity and data directory as the official build. Don't run both at once, and don't install both side by side — they would fight over the same clipboard history.
+> ⚠️ HandPick and the upstream official build can be installed side by side, but **don't run both at once** — both register global shortcuts and watch the clipboard, so they would fight over them.
 
 ---
 
@@ -60,10 +66,10 @@ Three ways to open it: click the taskbar button, right-click the tray icon → *
 Layout — top bar, sidebar, main area:
 
 - **Top bar**: quick actions (quick screenshot / auto recognition / back to clipboard) plus the paper-ink window controls (gold = minimize, hollow dot = maximize, vermilion = close)
-- **Sidebar**: brand + version; page sections (Clipboard / Translate / AI Vision / Settings) that swap content in the main area; the collapsible **tool groups** (Search & recognition / Recording & pinning / Window / Help & system) holding every action by name; and the **main-page mode** picker (auto / search / translate)
+- **Sidebar**: brand + version; page sections (Clipboard / Translate / AI Vision / Settings) that swap content in the main area; the collapsible **tool groups** (Search & recognition / Window / Help & system) holding every action by name; and the **main-page mode** picker (auto / search / translate)
 - **Main area**: clipboard history by default; translate, AI Vision and settings switch in here
 
-The main page (editor) and Help remain separate windows; screenshot, pin-to-desktop, screen translation and recorder overlays are full-screen layers launched from the tool groups.
+The main page (editor) and Help remain separate windows; screenshot, pin-to-desktop and screen translation are full-screen layers launched from the tool groups.
 
 ### Look: paper & ink
 
@@ -78,11 +84,13 @@ The **tray** now does only two things: left click = quick screenshot (setting: "
 ## Data location and encryption
 
 ```
-%APPDATA%\eSearch\剪贴板历史\
+%APPDATA%\HandPick\剪贴板历史\
 ├─ index.bin                index of all entries (text, timestamps, pinned flags)
 ├─ images\                  image entries, one .bin each
 └─ ..\clipboardHistory.key  encryption key (in the parent directory)
 ```
+
+When upgrading from the old fork build, the first launch copies the old data from `%APPDATA%\eSearch` over; the old directory stays on disk and can be deleted manually once you are happy with the new build.
 
 Entries are **not stored in plain text** — they use **AES-256-GCM**, and the key itself is encrypted at rest with the OS credential store (Electron `safeStorage`). Copying `index.bin` off the machine is not enough to read it.
 
@@ -116,12 +124,16 @@ pnpm run start
 pnpm run dist
 ```
 
-Artifacts land in `build/`. Note that `pnpm run dev` does not work in this project (native `.node` modules); use `pnpm run start`.
+Artifacts land in `build/` as `handpick-<version>-win32-x64.exe` / `.zip`. Note that `pnpm run dev` does not work in this project (native `.node` modules); use `pnpm run start`.
+
+Do not add `--ignore-scripts` to `pnpm install` — the Electron binary is downloaded by its install script, and skipping it makes startup fail with `Error: Electron uninstall`. For other startup errors see [Local startup & troubleshooting](docs/develop/本地启动与排障.md).
 
 ---
 
 ## License
 
 [GPL-3.0](LICENSE) © xushengfeng
+
+Upstream: [xushengfeng/eSearch](https://github.com/xushengfeng/eSearch) · This fork: [baichuanjiang2-cell/HandPick](https://github.com/baichuanjiang2-cell/HandPick)
 
 Everything except the clipboard-history and Control Center work comes from upstream. General upstream fixes submitted from this fork: [PR #518](https://github.com/xushengfeng/eSearch/pull/518).

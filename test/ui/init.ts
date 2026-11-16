@@ -3,11 +3,11 @@ import { renameSync, rmSync } from "node:fs";
 
 const appPath =
     process.platform === "linux"
-        ? `${process.env.HOME}/.config/eSearch`
+        ? `${process.env.HOME}/.config/HandPick`
         : process.platform === "win32"
-          ? `${process.env.APPDATA}/eSearch`
+          ? `${process.env.APPDATA}/HandPick`
           : process.platform === "darwin"
-            ? `${process.env.HOME}/Library/Application Support/eSearch`
+            ? `${process.env.HOME}/Library/Application Support/HandPick`
             : "";
 const configPath = `${appPath}/config.json`;
 const backupPath = `${appPath}/config.json.bak`;

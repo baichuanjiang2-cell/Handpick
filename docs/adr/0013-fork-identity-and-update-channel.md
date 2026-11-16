@@ -7,7 +7,7 @@ Status: accepted
 ## 以本分支名义
 
 - `package.json` 的 `homepage` → `https://github.com/baichuanjiang2-cell/eSearch-paste/`，关于区的「项目主页」与「为项目点亮星标🌟」都吃这一个值。
-- `package.json` 的 `description` → 「识屏 · 录屏 · 剪贴板历史 · 翻译」。它是关于区**标语**与安装包 exe「文件说明」的唯一来源，两处一起变。
+- `package.json` 的 `description` → 「识屏 · 剪贴板历史 · 翻译」。它是关于区**标语**与安装包 exe「文件说明」的唯一来源，两处一起变。
 - 启动日志的项目地址。
 - 三处反馈入口（托盘/截屏报错的「反馈」、设置搜索无结果的「提交新功能」）与 `.github/ISSUE_TEMPLATE/` 两个模板里的提示文案 —— bug 提给改坏它的人，不再塞给原作者。
 - 「帮助」按钮与 issue 模板里的文档链接 → 本分支的 `master` 分支。原来的写法是 `blob/${版本}`，而上游根本没有 `15.7.0` 这个 tag，**这两条链接在本版之前就是 404**。
@@ -25,7 +25,7 @@ Status: accepted
 
 以下几处看着像"忘了改"，其实是改坏功能的，清单与理由一并留档：
 
-- `electron-builder.config.js` 与 `setting.ts` 里下载 OCR 模型、分割模型、ffmpeg、`ctrlc` 的 `xushengfeng/*` releases 地址 —— 这些是**依赖资源**，本分支仓库上没有这些文件，改指自己就是下载 404。
+- `electron-builder.config.js` 与 `setting.ts` 里下载 OCR 模型、分割模型、`ctrlc` 的 `xushengfeng/*` releases 地址 —— 这些是**依赖资源**，本分支仓库上没有这些文件，改指自己就是下载 404。
 - `package.json` 的 `author`（`xsf / xushengfeng_zg@163.com`）—— 按 GPL 惯例保留原作者，它还会被 electron-builder 写进 exe 的公司/版权元数据。关于区只留一行「本软件基于 eSearch（xushengfeng）修改」，不再有邮箱与年份。
 - `README.md` / `README_en.md` 里的 `© xushengfeng` 许可行，以及依赖包名 `@xushengfeng/fasttext_wasm`（那是 npm 包名，不是链接）。
 - 「改进翻译」入口 → 上游 `lib/translate`：词条表和翻译工具在上游维护，引到本分支等于把人送到一个没人维护翻译的地方。这一行不是署名，是功能入口。

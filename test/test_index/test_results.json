@@ -124,38 +124,6 @@
         "state": true
     },
     {
-        "name": "标准录屏",
-        "state": null
-    },
-    {
-        "name": "标准录屏.摄像头",
-        "state": null
-    },
-    {
-        "name": "标准录屏.麦克风",
-        "state": null
-    },
-    {
-        "name": "标准录屏.系统声音",
-        "state": null
-    },
-    {
-        "name": "标准录屏.短视频",
-        "state": null
-    },
-    {
-        "name": "标准录屏.长视频",
-        "state": null
-    },
-    {
-        "name": "标准录屏.光标和键盘",
-        "state": null
-    },
-    {
-        "name": "标准录屏.虚拟背景",
-        "state": null
-    },
-    {
         "name": "截屏美化",
         "state": null
     }

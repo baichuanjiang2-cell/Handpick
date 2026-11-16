@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0875FF"/>
+      <stop offset="100%" stop-color="#087AFF"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="190" fill="url(#bg)"/>
+
+  <g fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190 369 V253 Q190 190 253 190 H371"/>
+    <path d="M653 190 H771 Q834 190 834 253 V369"/>
+    <path d="M190 615 V771 Q190 834 253 834 H371"/>
+    <path d="M653 834 H771 Q834 834 834 771 V615"/>
+  </g>
+
+  <g fill="#FFD34E">
+    <rect x="422" y="259" width="49" height="109" rx="24.5" transform="rotate(-3 446.5 313.5)"/>
+    <rect x="317" y="318" width="49" height="103" rx="24.5" transform="rotate(-55 341.5 369.5)"/>
+    <rect x="520" y="296" width="49" height="107" rx="24.5" transform="rotate(43 544.5 349.5)"/>
+  </g>
+
+  <path d="M430 423
+           Q428 402 446 403
+           Q452 401 462 406
+           L716 519
+           Q738 529 725 551
+           Q722 557 710 562
+           L638 579
+           L698 645
+           Q717 665 697 686
+           L680 703
+           Q660 722 640 702
+           L575 634
+           L540 697
+           Q525 719 506 705
+           Q500 701 498 688
+           Z"
+        fill="#FFFFFF"
+        stroke="#FFFFFF"
+        stroke-width="4"
+        stroke-linejoin="round"/>
+</svg>

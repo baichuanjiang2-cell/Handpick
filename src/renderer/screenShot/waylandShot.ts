@@ -34,7 +34,7 @@ export async function waylandShotInit() {
                 // 获取返回的 Request 对象路径
                 const result = await screenshotIface
                     .call("Screenshot", "sa{sv}", "", [
-                        ["handle_token", { signature: "s", value: "esearch" }],
+                        ["handle_token", { signature: "s", value: "handpick" }],
                         ["interactive", { signature: "b", value: false }],
                     ])
                     .as<"o">();

@@ -14,9 +14,9 @@
 
 默认配置存储在`appData`目录下，在不同平台中：
 
-- Windows: `%AppData%/eSearch`
-- macOS: `~/Library/Application Support/eSearch`
-- Linux: `~/.config/eSearch`
+- Windows: `%AppData%/HandPick`
+- macOS: `~/Library/Application Support/HandPick`
+- Linux: `~/.config/HandPick`
 
 你可以在设置里设置自定义配置目录，这个选项是配置的配置，会自动生成`preload_config`保存在运行目录下。支持相对路径和绝对路径。
 

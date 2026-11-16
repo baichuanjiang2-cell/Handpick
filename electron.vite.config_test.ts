@@ -26,7 +26,7 @@ export default defineConfig({
         plugins: [
             ViteImageOptimizer({
                 cache: true,
-                cacheLocation: path.join(tmpdir(), "eSearch_build"),
+                cacheLocation: path.join(tmpdir(), "handpick_build"),
                 logStats: false,
             }),
         ],

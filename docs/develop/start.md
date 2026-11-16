@@ -24,12 +24,12 @@ pnpm config set electron_mirror https://npmmirror.com/mirrors/electron/
 克隆项目到本地：
 
 ```shell
-git clone https://github.com/xushengfeng/eSearch.git
+git clone https://github.com/baichuanjiang2-cell/HandPick.git
 # 如果不需要代码回溯
-git clone --depth=1 https://github.com/xushengfeng/eSearch.git
+git clone --depth=1 https://github.com/baichuanjiang2-cell/HandPick.git
 ```
 
-使用 vscode 打开`eSearch`文件夹，安装依赖：
+使用 vscode 打开`HandPick`文件夹，安装依赖：
 
 ```shell
 pnpm install
@@ -43,8 +43,13 @@ pnpm install
 运行：
 
 ```shell
+pnpm install
 pnpm run start
 ```
+
+> [!IMPORTANT]
+> `pnpm install` 不要加 `--ignore-scripts`，否则 Electron 主程序不会下载，启动时报 `Error: Electron uninstall`。
+> `pnpm run start` 会先构建再启动。遇到其它启动报错见[本地启动与排障](本地启动与排障.md)。
 
 由于我还没配置好 vite 下调试带有`.node`的库，所以无法使用`pnpm run dev`。
 

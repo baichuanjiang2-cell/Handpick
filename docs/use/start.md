@@ -1,6 +1,6 @@
 # 快速开始
 
-运行**eSearch**。按下 Alt+C 或 ⌥C 即可进行截屏。当然也可以右键点击托盘处的图标，点击“截屏搜索”进行截屏。
+运行**HandPick**。按下 Alt+C 或 ⌥C 即可进行截屏。当然也可以右键点击托盘处的图标，点击“截屏搜索”进行截屏。
 
 此时默认**框选全屏**。
 
@@ -18,7 +18,6 @@
 
 <img height="16" src="../../src/renderer/assets/icons/ding.svg"><a href="ding.md" target="_blank">固定在屏幕上</a>
 
-<img height="16" src="../../src/renderer/assets/icons/record.svg"><a href="record.md" target="_blank">录屏</a>
 
 <img height="16" src="../../src/renderer/assets/icons/long_clip.svg"><a href="long_clip.md" target="_blank">广截屏</a>
 

@@ -4,9 +4,9 @@
 Create a csv, specify an existing language for editing or specify a new language
 
 > [!TIP]
-> 选项`-a`用于输出全部文字。如果你发现原来的翻译存在不足，需要修改，请使用这一选项。如果你需要跟进翻译，即 eSearch 的某些文字已经修改，但翻译未修改，请不使用这一选项
+> 选项`-a`用于输出全部文字。如果你发现原来的翻译存在不足，需要修改，请使用这一选项。如果你需要跟进翻译，即 HandPick 的某些文字已经修改，但翻译未修改，请不使用这一选项
 >
-> The option `- a` is used to output all text. If you find that the original translation is inadequate and need to be modified, please use this option. If you need to follow up on the translation, that is, some text in eSearch has been modified, but the translation has not been modified, please do not use this option
+> The option `- a` is used to output all text. If you find that the original translation is inadequate and need to be modified, please use this option. If you need to follow up on the translation, that is, some text in HandPick has been modified, but the translation has not been modified, please do not use this option
 
 ```shell
 node lib/translate/tool.js -l en

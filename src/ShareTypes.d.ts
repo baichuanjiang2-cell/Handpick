@@ -231,7 +231,7 @@ export interface setting {
     };
     保存: {
         默认格式: "png" | "jpg" | "svg" | "webp" | "bmp";
-        保存路径: { 图片: string; 视频: string };
+        保存路径: { 图片: string };
         快速保存: boolean;
         保存并复制: boolean;
     };
@@ -302,75 +302,6 @@ export interface setting {
         频率: "manual" | "start";
         模式: "大版本" | "小版本" | "dev";
         忽略版本: string;
-    };
-    录屏: {
-        /** "old" = 经典录屏（兼容模式），其余值都走超级录屏管线；旧版遗留，新开关是 经典 */
-        模式: "old" | "normal" | "super";
-        /** 经典录屏（兼容模式）：录屏入口走旧 MediaRecorder + FFmpeg 管线 */
-        经典: boolean;
-        自动录制: boolean;
-        自动录制延时: number;
-        视频比特率: number;
-        /** 区域录屏停止后直接导出保存，不进编辑器 */
-        区域直出: boolean;
-        /** 录屏导出不再弹保存对话框，直接存到视频目录并通知 */
-        自动保存: boolean;
-        摄像头: {
-            开启: boolean;
-            设备: string;
-            镜像: boolean;
-            背景: {
-                模式: "none" | "hide" | "blur" | "img" | "video";
-                模糊: number;
-                imgUrl: string;
-                videoUrl: string;
-                fit: "cover" | "fit";
-            };
-        };
-        音频: {
-            设备列表: string[];
-            启用系统内录: boolean;
-        };
-        转换: {
-            格式: string;
-            码率: number;
-            帧率: number;
-            其他: string;
-            高质量gif: boolean;
-            分段: number;
-        };
-        提示: {
-            键盘: {
-                开启: boolean;
-                位置: {
-                    x: "+" | "-";
-                    y: "+" | "-";
-                    offsetX: number;
-                    offsetY: number;
-                };
-                大小: number;
-            };
-            鼠标: {
-                开启: boolean;
-            };
-            光标: {
-                开启: boolean;
-                样式: string;
-            };
-        };
-        大小: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        };
-        超级录屏: {
-            编码选择: "性能优先" | "内存优先";
-            关键帧间隔: number;
-            缩放: number;
-            格式: string;
-            导出后关闭: boolean;
-        };
     };
     屏幕翻译: {
         type: translateWinType["type"];
@@ -466,7 +397,6 @@ type 功能列表 = [
     "QR",
     "open",
     "ding",
-    "record",
     "long",
     "translate",
     "editor",

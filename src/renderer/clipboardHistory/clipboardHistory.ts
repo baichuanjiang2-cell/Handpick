@@ -169,20 +169,13 @@ const featureGroups: [string, FeatureItem[]][] = [
         ],
     ],
     [
-        "录屏与贴图",
+        "贴图",
         [
-            {
-                action: "superRecord",
-                label: "录屏",
-                icon: "record",
-                group: "录屏与贴图",
-                size: "big",
-            },
             {
                 action: "dingFromClipboard",
                 label: "从剪贴板贴图",
                 icon: "ding",
-                group: "录屏与贴图",
+                group: "贴图",
             },
         ],
     ],
@@ -408,7 +401,7 @@ const appVersion = (() => {
     }
 })();
 
-const brand = image(getImgUrl("main.svg"), "eSearch").class("ch-logo");
+const brand = image(getImgUrl("main.svg"), "HandPick").class("ch-logo");
 const headTitle = txt(t("控制中心")).class("ch-scope");
 
 const quick = ele("div").class("ch-quick");
@@ -480,7 +473,7 @@ const head = view("x")
     .class("ch-head")
     .add([
         brand,
-        txt("eSearch", true).class("ch-brand-name"),
+        txt("HandPick", true).class("ch-brand-name"),
         view().class("ch-sep"),
         headTitle,
         spacer(),

@@ -1,15 +1,21 @@
-# eSearch-paste
+<div align="center">
+
+<img src="assets/logo/128x128.png" width="96" alt="HandPick 图标"/>
+
+# HandPick-信手拈来
 
 （中文 | [English](README_en.md)）
 
-[![license](https://img.shields.io/github/license/xushengfeng/eSearch)](LICENSE)
-[![release](https://img.shields.io/github/v/release/baichuanjiang2-cell/eSearch-paste?label=release)](https://github.com/baichuanjiang2-cell/eSearch-paste/releases/latest)
+[![license](https://img.shields.io/github/license/baichuanjiang2-cell/HandPick)](LICENSE)
+[![release](https://img.shields.io/github/v/release/baichuanjiang2-cell/HandPick?label=release)](https://github.com/baichuanjiang2-cell/HandPick/releases/latest)
 
-**eSearch 的私人定制分支。** 保留上游全部能力（截屏 / OCR / 搜索 / 翻译 / 贴图 / 屏幕翻译 / 以图搜图 / 滚动截屏 / 录屏），在它之上加了两样东西：
+</div>
+
+**[eSearch](https://github.com/xushengfeng/eSearch) 的私人定制分支，取名 HandPick（信手拈来）。** 保留上游全部能力（截屏 / OCR / 搜索 / 翻译 / 贴图 / 屏幕翻译 / 以图搜图 / 滚动截屏），在它之上加了两样东西：
 
 **剪贴板历史** —— 自己维护一份可检索的复制记录，文本 / 图片 / 文件路径都记，能搜、能就地改、能放大看图、能固定（固定后星标是金色实心）。
 
-**控制中心** —— 点任务栏按钮打开的**整个软件的壳窗口**：左侧边栏导航 + 顶栏快路径，进来默认就是剪贴板历史；截屏、贴图、录屏、OCR 这些全在侧边栏的**工具组**里一键直达。打开软件 = 点任务栏图标，什么都能干。
+**控制中心** —— 点任务栏按钮打开的**整个软件的壳窗口**：左侧边栏导航 + 顶栏快路径，进来默认就是剪贴板历史；截屏、贴图、OCR 这些全在侧边栏的**工具组**里一键直达。打开软件 = 点任务栏图标，什么都能干。
 
 > 上游 [xushengfeng/eSearch](https://github.com/xushengfeng/eSearch) 已明确拒绝「剪贴板管理」类功能（[Issue #317](https://github.com/xushengfeng/eSearch/issues/317) 与 [PR #515](https://github.com/xushengfeng/eSearch/pull/515) 均已关闭），所以这部分不打算回贡，只在本分支维护。
 
@@ -31,20 +37,20 @@
 
 ## 下载安装
 
-到 [Releases](https://github.com/baichuanjiang2-cell/eSearch-paste/releases/latest) 下载，两个文件二选一：
+到 [Releases](https://github.com/baichuanjiang2-cell/HandPick/releases/latest) 下载，两个文件二选一：
 
 | 文件 | 大小 | 说明 |
 | --- | --- | --- |
-| `esearch_paste-15.7.1-win32-x64.exe` | 约 186 MB | **安装包**（推荐）。有向导、**不需要管理员权限**、自动建快捷方式 |
-| `esearch_paste-15.7.1-win32-x64.zip` | 约 246 MB | 绿色版，解压即用 |
+| `handpick-15.7.3-win32-x64.exe` | 约 186 MB | **安装包**（推荐）。有向导、**不需要管理员权限**、自动建快捷方式 |
+| `handpick-15.7.3-win32-x64.zip` | 约 246 MB | 绿色版，解压即用 |
 
-> 文件名带 `esearch_paste-` 前缀是故意的 —— 官方版叫 `eSearch-<版本>-win32-x64.exe`，不加前缀会混。前缀**只改文件名**，程序内部的名字、安装位置、数据目录都没变。
+> 文件名带 `handpick-` 前缀是故意的 —— 官方版叫 `eSearch-<版本>-win32-x64.exe`。从 15.7.3 起程序本身也整体更名（appId、数据目录都独立，见 [ADR 0016](docs/adr/0016-rebrand-to-handpick.md)），与上游官方版是完全分开的两个软件，不会互相覆盖。
 
 **安装时 Windows 可能弹蓝色的「Windows 已保护你的电脑」** —— 点「更多信息」→「仍要运行」。这是因为没买代码签名证书（一年几百到上千元），个人开发的小工具都会这样，不代表有病毒。
 
-**升级不会丢数据**：安装版和从源码跑的版本共用同一个数据目录 `%APPDATA%\eSearch`，配置、剪贴板历史、加密密钥全部继承。
+**升级不会丢数据**：安装版和从源码跑的版本共用同一个数据目录 `%APPDATA%\HandPick`，配置、剪贴板历史、加密密钥全部继承。从旧版（eSearch-paste，数据在 `%APPDATA%\eSearch`）升级：首次启动 HandPick 会自动把旧数据整体搬迁过来，不用手动备份。
 
-> ⚠️ 本分支与上游官方版**共用同一个程序标识和同一个数据目录**。别两个同时运行、也别混着装 —— 会抢同一份剪贴板历史。
+> ⚠️ HandPick 与上游官方版可以同时安装，但**不要同时运行** —— 两边都会注册全局快捷键、监听剪贴板，会互相抢占。
 
 ---
 
@@ -65,7 +71,7 @@
 
 ### 上游原有功能（完整保留）
 
-**截屏** · 截屏美化 · **滚动截屏** · **录屏 / 超级录屏** · **屏幕贴图** · **OCR 文字识别** · **以图搜图** · **翻译** · **屏幕翻译** · 离线 OCR 模型 · 全局快捷键 · 托盘
+**截屏** · 截屏美化 · **滚动截屏** · **屏幕贴图** · **OCR 文字识别** · **以图搜图** · **翻译** · **屏幕翻译** · 离线 OCR 模型 · 全局快捷键 · 托盘
 
 用法与上游一致，详细说明见上游的 [README](https://github.com/xushengfeng/eSearch#功能) 和[使用文档](https://github.com/xushengfeng/eSearch/tree/master/docs/use)。
 
@@ -91,11 +97,11 @@
 - **左侧边栏**：
   - 品牌区（软件名 + 版本号）
   - **页面栏目**：剪贴板 / 翻译 / AI 识图 / 设置 —— 点了在主内容区里换页，不出新窗口
-  - **工具组**：全量功能的折叠分组（搜索与识别 / 录屏与贴图 / 窗口 / 帮助与系统），每个功能都露名、一次点击直达，默认展开
+  - **工具组**：全量功能的折叠分组（搜索与识别 / 窗口 / 帮助与系统），每个功能都露名、一次点击直达，默认展开
   - **主页面模式**：自动 / 搜索 / 翻译，决定打开主页面时先呈现什么
 - **主内容区**：默认是剪贴板历史；翻译 / AI 识图 / 设置 在这里切换
 
-**主页面**（编辑器）与**帮助**仍是独立窗口；截屏、贴图、屏幕翻译、录屏提示是全屏覆盖层，从工具组触发出去，不进壳。
+**主页面**（编辑器）与**帮助**仍是独立窗口；截屏、贴图、屏幕翻译是全屏覆盖层，从工具组触发出去，不进壳。
 
 ### 外观：纸墨编辑部
 
@@ -155,11 +161,13 @@
 ## 数据存在哪
 
 ```
-%APPDATA%\eSearch\剪贴板历史\
+%APPDATA%\HandPick\剪贴板历史\
 ├─ index.bin                记录的索引（文字内容、时间、是否固定等）
 ├─ images\                  图片记录，每条一个 .bin 文件
 └─ ..\clipboardHistory.key  加密密钥（在上一级目录）
 ```
+
+从旧版升级时，首次启动会自动把 `%APPDATA%\eSearch` 的旧数据复制过来；旧目录会保留在磁盘上，确认新版一切正常后可手动删除。
 
 **加密**：记录不是明文存的，用的是 **AES-256-GCM**；密钥本身由系统级凭据保护（safeStorage）加密后才落盘。别人直接把 `index.bin` 拷走是打不开的。
 
@@ -193,16 +201,18 @@ pnpm run start
 pnpm run dist
 ```
 
+> `pnpm install` 不要加 `--ignore-scripts`，否则启动会报 `Electron uninstall`。其它启动问题见[本地启动与排障](docs/develop/本地启动与排障.md)。
+
 打包产物在 `build/`：
 
 | 文件 | 大小 |
 | --- | --- |
-| `esearch_paste-<版本>-win32-x64.exe` | 约 186 MB（安装包） |
-| `esearch_paste-<版本>-win32-x64.zip` | 约 246 MB（绿色版） |
+| `handpick-<版本>-win32-x64.exe` | 约 186 MB（安装包） |
+| `handpick-<版本>-win32-x64.zip` | 约 246 MB（绿色版） |
 
 > `pnpm run dev` 在这个项目里跑不通（原生 `.node` 库的问题），用 `pnpm run start`。
 >
-> 打包前需要 5 个资源（OCR 模型、ffmpeg 等，约 155 MB），首次会自动下载。
+> 打包前需要 4 个资源（OCR 模型等，约 155 MB），首次会自动下载。
 
 ---
 
@@ -212,8 +222,9 @@ pnpm run dist
 | --- | --- |
 | [`docs/新手使用指南.md`](docs/新手使用指南.md) | **从这里开始**。从零到跑起来、控制中心怎么用、怎么打包安装，全程照着做 |
 | [`CONTEXT.md`](CONTEXT.md) | 术语表。「控制中心」「剪贴板历史」「工具组」「固定」这些词具体指什么 |
-| [`docs/adr/`](docs/adr/) | 架构决策记录（0001~0009）：为什么分支要和上游分开、面板为什么独立成窗口、外观为什么从液态玻璃退回纯色、入口为什么统一成控制中心 |
-| [`docs/液态玻璃开发方案.md`](docs/液态玻璃开发方案.md) | 液态玻璃的设计过程与市面做法调研（**历史文档**，那套做法已在 ADR 0008 中移除） |
+| [`docs/adr/`](docs/adr/) | 架构决策记录（0001~0016，0014 编号空缺，0016 为品牌更名）：为什么分支要和上游分开、面板为什么独立成窗口、外观为什么从液态玻璃退回纯色、入口为什么统一成控制中心、录屏能力为什么整体移除、为什么整体更名 HandPick |
+| [`docs/录屏移除交接.md`](docs/录屏移除交接.md) | **接手先看**。录屏移除那一轮改动的全过程、验证记录、踩过的坑、遗留与待办 |
+| [`docs/develop/本地启动与排障.md`](docs/develop/本地启动与排障.md) | 从源码启动的完整流程，以及 `Electron uninstall`、翻译资源文件名报错的原因与解法 |
 | [`docs/改动说明规范.md`](docs/改动说明规范.md) | 本分支的协作约定：每次改动后怎么向使用者汇报 |
 
 ---
@@ -221,7 +232,7 @@ pnpm run dist
 ## 上游与许可
 
 - 上游：[xushengfeng/eSearch](https://github.com/xushengfeng/eSearch)
-- 本分支：[baichuanjiang2-cell/eSearch-paste](https://github.com/baichuanjiang2-cell/eSearch-paste)
+- 本分支：[baichuanjiang2-cell/HandPick](https://github.com/baichuanjiang2-cell/HandPick)
 - 许可：[GPL-3.0](LICENSE) © xushengfeng
 
 除剪贴板历史、控制中心相关的改动外，全部功能与代码来自上游。本分支向上游提交过的**与定制功能无关**的通用修复见 [PR #518](https://github.com/xushengfeng/eSearch/pull/518)。

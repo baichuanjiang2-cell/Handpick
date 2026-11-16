@@ -46,7 +46,7 @@ Deepl, https://www.deepl.com/translator#any/any/%s
 </pre>
 </details>
 
-这些翻译需要打开他们的网站，页面大部分不简洁，因此**eSearch**提供了自定义翻译 API 的方式。
+这些翻译需要打开他们的网站，页面大部分不简洁，因此**HandPick**提供了自定义翻译 API 的方式。
 
 主页面翻译引擎列表里已经添加名为`翻译`的翻译引擎，你可以在设置中更改名字，调节顺序。
 

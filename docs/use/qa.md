@@ -6,13 +6,13 @@
 
 ## 兼容性
 
-由于 eSearch 框架使用 Electron，将不再支持 Win7、Win8
+由于 HandPick 框架使用 Electron，将不再支持 Win7、Win8
 
 但仍然可以运行在 Win10、MacOS、Linux 等平台上。
 
 最后支持 Win7 等的版本为 1.12.4，但支持 OCR 的版本是 1.8.0
 
-可以自己[编译 eSearch](../develop/start.md) ，把一些库降级，并且还能使用新版本的功能（当然肯定不完整了）
+可以自己[编译 HandPick](../develop/start.md) ，把一些库降级，并且还能使用新版本的功能（当然肯定不完整了）
 
 降级的库有：
 

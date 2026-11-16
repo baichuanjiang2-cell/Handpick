@@ -55,7 +55,7 @@ type TabItem = {
 
 const tmpTextPath = path.join(
     os.tmpdir(),
-    `/eSearch/eSearch_${Date.now()}.txt`,
+    `/HandPick/HandPick_${Date.now()}.txt`,
 );
 
 import { rotateImg } from "esearch-ocr";
@@ -2037,7 +2037,7 @@ async function edit(arg: EditToolsType) {
             const blob = new Blob([t.join("\n")], { type: "text/csv" });
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = "eSearch.csv";
+            a.download = "HandPick.csv";
             a.click();
             break;
         }
@@ -2495,7 +2495,7 @@ function google(
     form.append(
         "encoded_image",
         new Blob([u8arr], { type: "image/png" }),
-        "eSearch.png",
+        "HandPick.png",
     );
     form.append("image_content", "");
     const url = `https://lens.google.com/v3/upload?hl=zh-CN&re=df&st=${Date.now()}&vpw=1041&vph=779`;
@@ -2505,7 +2505,7 @@ function google(
     })
         .then(async (r) => {
             const text = await r.text();
-            const tmp = path.join(os.tmpdir(), "eSearch", "google.html");
+            const tmp = path.join(os.tmpdir(), "HandPick", "google.html");
             fs.writeFileSync(tmp, text);
             callback(null, `file://${tmp}`);
         })

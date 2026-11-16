@@ -2,7 +2,7 @@
 
 主要是关于 pr 的指南
 
-- [fork 本仓库](https://github.com/xushengfeng/eSearch/fork)
+- [fork 本仓库](https://github.com/baichuanjiang2-cell/HandPick/fork)
 - clone 到本地或直接在线上编辑器修改
 - 提交一个 Pull Request
 

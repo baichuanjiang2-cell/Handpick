@@ -133,7 +133,6 @@ const tools: { key: 功能; icon: string; title: string }[] = [
     { key: "QR", icon: getImgUrl("scan.svg"), title: t("二维码") },
     { key: "open", icon: getImgUrl("open.svg"), title: t("其他应用打开") },
     { key: "ding", icon: getImgUrl("ding.svg"), title: t("屏幕贴图") },
-    { key: "record", icon: getImgUrl("record.svg"), title: t("录屏") },
     { key: "long", icon: getImgUrl("long_clip.svg"), title: t("广截屏") },
     {
         key: "translate",
@@ -711,218 +710,6 @@ const s: Partial<settingItem<SettingPath>> = {
                 },
             ),
     },
-    "录屏.自动录制": {
-        name: "自动录制",
-        desc: "框选后在录屏就绪条上按设定延时自动开始；默认关闭——手动点「开始录制」",
-        el: () => xSwitch(),
-    },
-    "录屏.自动录制延时": {
-        name: "自动录制",
-        el: () => xNumber("s", { min: 0, max: 10 }),
-    },
-    "录屏.视频比特率": {
-        name: "视频比特率",
-        el: () => xNumber("Mbps", { min: 1, max: 40, step: 0.5 }),
-    },
-    "录屏.区域直出": {
-        name: "停止后直接导出",
-        desc: "区域录屏停止后按悬浮条选的格式直接转换保存并通知，不进编辑器",
-        el: () => xSwitch(),
-    },
-    "录屏.自动保存": {
-        name: "自动保存",
-        desc: "导出不再弹保存对话框，直接存到视频目录并系统通知；点击通知打开所在文件夹",
-        el: () => xSwitch(),
-    },
-    "录屏.经典": {
-        name: "启用经典录屏",
-        desc: "旧 MediaRecorder + FFmpeg 管线：录制中暂停、摄像头抠背景、倒计时与 mkv/mov/ts 等容器格式。开启后截图工具条的「录屏」走旧管线",
-        el: () => xSwitch(),
-    },
-    "录屏.提示.键盘.开启": {
-        name: "录屏键盘提示",
-        el: () => xSwitch(),
-    },
-    "录屏.提示.键盘.位置": {
-        name: "键盘提示位置",
-        el: (v) => {
-            let nv: typeof v = { x: "+", y: "-", offsetX: 0, offsetY: 0 };
-            const screenKeyTipEl = view().style({
-                width: "500px",
-                height: "200px",
-                outline: `1px dashed ${cssColor.b}`,
-                position: "relative",
-            });
-            const screenKeyTipKBD = view()
-                .style({ position: "absolute", cursor: "move" })
-                .add([
-                    ele("kbd").add(noI18n("Ctrl")),
-                    ele("kbd").add(noI18n("Shift")),
-                    ele("kbd").add(noI18n("I")),
-                ])
-                .addInto(screenKeyTipEl);
-
-            function setKeyTip() {
-                const posi = nv;
-                const px = posi.x === "+" ? "right" : "left";
-                const py = posi.y === "+" ? "bottom" : "top";
-                for (const x of ["left", "right", "top", "bottom"] as const) {
-                    screenKeyTipKBD.el.style[x] = "";
-                }
-                screenKeyTipKBD.style({
-                    [px]: `${posi.offsetX}px`,
-                    [py]: `${posi.offsetY}px`,
-                    fontSize: `${getSet("录屏.提示.键盘.大小") * 16}px`,
-                });
-            }
-
-            trackPoint(screenKeyTipKBD, {
-                start: () => {
-                    return {
-                        x: 0,
-                        y: 0,
-                        data: screenKeyTipEl.el.getBoundingClientRect(),
-                    };
-                },
-                ing: (_p, e, { startData: pr }) => {
-                    const x = (e.clientX - pr.left) / pr.width;
-                    const y = (e.clientY - pr.top) / pr.height;
-                    nv.x = x < 0.5 ? "-" : "+";
-                    nv.y = y < 0.5 ? "-" : "+";
-                    setKeyTip();
-                },
-                end: () => {
-                    screenKeyTipEl.el.dispatchEvent(new CustomEvent("input"));
-                },
-            });
-
-            return view()
-                .class(blockSetting)
-                .add(screenKeyTipEl)
-                .bindGet(() => nv)
-                .bindSet((v) => {
-                    nv = v;
-                    setKeyTip();
-                });
-        },
-    },
-    "录屏.提示.键盘.位置.offsetX": {
-        name: "键盘提示偏移x",
-        el: () => xNumber("px", { min: 0 }),
-    },
-    "录屏.提示.键盘.位置.offsetY": {
-        name: "键盘提示偏移y",
-        el: () => xNumber("px", { min: 0 }),
-    },
-    "录屏.提示.键盘.大小": {
-        name: "键盘提示大小",
-        el: () => xNumber("", { min: 0.25, max: 5, step: 0.25 }),
-    },
-    "录屏.提示.鼠标.开启": {
-        name: "鼠标按键提示",
-        el: () => xSwitch(),
-    },
-    "录屏.提示.光标.开启": {
-        name: "开启光标提示",
-        el: () => xSwitch(),
-    },
-    "录屏.提示.光标.样式": {
-        name: "光标提示样式",
-        el: () => ele("textarea").class(blockSetting),
-    },
-    "录屏.摄像头.开启": {
-        name: "开启摄像头",
-        el: () => xSwitch(),
-    },
-    "录屏.摄像头.镜像": {
-        name: "镜像",
-        el: () => xSwitch(),
-    },
-    "录屏.摄像头.背景.模式": {
-        name: "摄像头背景",
-        el: (v) =>
-            xSelect<typeof v>(
-                [
-                    { value: "none", name: "正常" },
-                    { value: "hide", name: "隐藏" },
-                    { value: "blur", name: "模糊" },
-                    { value: "img", name: "图片" },
-                    { value: "video", name: "视频" },
-                ],
-                "摄像头背景",
-            ),
-    },
-    "录屏.摄像头.背景.模糊": {
-        name: "背景模糊程度",
-        el: () => xNumber("px", { min: 1 }),
-    },
-    "录屏.摄像头.背景.imgUrl": { name: "背景图片路径", el: () => xPath(false) },
-    "录屏.摄像头.背景.videoUrl": {
-        name: "背景视频路径",
-        el: () => xPath(false),
-    },
-    "录屏.摄像头.背景.fit": {
-        name: "图片或视频填充模式",
-        el: (v) =>
-            xSelect<typeof v>(
-                [
-                    { value: "cover", name: "裁剪适应" },
-                    { value: "fit", name: "拉伸填充" },
-                ],
-                "图片或视频填充模式",
-            ),
-    },
-    "录屏.音频.启用系统内录": {
-        name: "系统内录",
-        desc: "开启才可以在界面进一步选择是否内录",
-        el: () => xSwitch(),
-    },
-    "录屏.转换.分段": {
-        name: "分段转换间隔时间",
-        desc: "边录制边转换以提升效率，0为不分段",
-        el: () => xNumber("s"),
-    },
-    "录屏.转换.格式": {
-        name: "输出格式",
-        el: () => input(),
-    },
-    "录屏.转换.码率": {
-        name: "码率",
-        desc: "超级录屏也适用",
-        el: () => xNumber("Mbps"),
-    },
-    "录屏.转换.帧率": {
-        name: "帧率",
-        desc: "超级录屏也适用",
-        el: () => xNumber("fps"),
-    },
-    "录屏.转换.其他": {
-        name: "FFmpeg其他参数",
-        el: () => input(),
-    },
-    "录屏.转换.高质量gif": {
-        name: "高质量 Gif",
-        desc: "转换时速度会很慢",
-        el: () => xSwitch(),
-    },
-    "录屏.超级录屏.编码选择": {
-        name: "编码选择",
-        desc: "视具体硬件支持",
-        el: (v) =>
-            xSelect<typeof v>(
-                [{ value: "性能优先" }, { value: "内存优先" }],
-                "编码选择",
-            ),
-    },
-    "录屏.超级录屏.关键帧间隔": {
-        name: "关键帧间隔",
-        desc: "越小处理速度越快，但会增加内存占用",
-        el: () => xNumber("", { max: 500, min: 1 }),
-    },
-    "录屏.超级录屏.导出后关闭": {
-        name: "导出后关闭",
-        el: () => xSwitch(),
-    },
     "保存名称.前缀": {
         name: "文件名称前缀",
         el: () => input(),
@@ -1296,10 +1083,6 @@ const s: Partial<settingItem<SettingPath>> = {
         name: getToolsN("ding"),
         el: () => hotkeyX(["ding", "2"], "ding"),
     },
-    "全局工具快捷键.record": {
-        name: getToolsN("record"),
-        el: () => hotkeyX(["record", "2"], "record"),
-    },
     "全局工具快捷键.long": {
         name: getToolsN("long"),
         el: () => hotkeyX(["long", "2"], "long_clip"),
@@ -1343,10 +1126,6 @@ const s: Partial<settingItem<SettingPath>> = {
     "工具快捷键.ding": {
         name: getToolsN("ding"),
         el: () => hotkeyP("ding"),
-    },
-    "工具快捷键.record": {
-        name: getToolsN("record"),
-        el: () => hotkeyP("record"),
     },
     "工具快捷键.long": {
         name: getToolsN("long"),
@@ -2103,7 +1882,7 @@ const xs: Record<
                     view().add([
                         "临时目录：",
                         " ",
-                        pathEl(path.join(os.tmpdir(), "eSearch")),
+                        pathEl(path.join(os.tmpdir(), "HandPick")),
                     ]),
                     view().add(["运行目录：", " ", pathEl(runPath)]),
                 ]);
@@ -2297,76 +2076,9 @@ const main: {
     },
     {
         pageName: "人工智能",
-        desc: "配置OCR、录屏背景移除等人工智能",
+        desc: "配置OCR、背景移除等人工智能",
         settings: ["AI.运行后端", "AI.在线模型"],
         items: [{ title: "魔法橡皮模型", settings: ["_inpaint"] }],
-    },
-    {
-        pageName: "录屏",
-        desc: "分为普通录屏和超级录屏，普通录屏固定位置和大小录制，超级录屏适合录制操作演示，提供自动运镜效果，录屏（旧）为旧版录屏",
-        items: [
-            {
-                title: "自动录制",
-                settings: ["录屏.自动录制", "录屏.自动录制延时"],
-            },
-            { title: "录制", settings: ["录屏.视频比特率"] },
-            {
-                title: "区域录屏",
-                settings: ["录屏.区域直出", "录屏.自动保存"],
-            },
-            {
-                title: "经典录屏（兼容模式）",
-                settings: ["录屏.经典"],
-            },
-            {
-                title: "提示",
-                settings: [
-                    "录屏.提示.键盘.开启",
-                    "录屏.提示.键盘.位置",
-                    "录屏.提示.键盘.位置.offsetX",
-                    "录屏.提示.键盘.位置.offsetY",
-                    "录屏.提示.键盘.大小",
-                    "录屏.提示.鼠标.开启",
-                    "录屏.提示.光标.开启",
-                    "录屏.提示.光标.样式",
-                ],
-            },
-            {
-                title: "摄像头",
-                settings: [
-                    "录屏.摄像头.开启",
-                    "录屏.摄像头.镜像",
-                    "录屏.摄像头.背景.模式",
-                    "录屏.摄像头.背景.模糊",
-                    "录屏.摄像头.背景.imgUrl",
-                    "录屏.摄像头.背景.videoUrl",
-                    "录屏.摄像头.背景.fit",
-                ],
-            },
-            {
-                title: "音频",
-                settings: ["录屏.音频.启用系统内录"],
-            },
-            {
-                title: "转换",
-                settings: [
-                    "录屏.转换.分段",
-                    "录屏.转换.格式",
-                    "录屏.转换.码率",
-                    "录屏.转换.帧率",
-                    "录屏.转换.其他",
-                    "录屏.转换.高质量gif",
-                ],
-            },
-            {
-                title: "超级录屏",
-                settings: [
-                    "录屏.超级录屏.编码选择",
-                    "录屏.超级录屏.关键帧间隔",
-                    "录屏.超级录屏.导出后关闭",
-                ],
-            },
-        ],
     },
     {
         pageName: "保存",
@@ -2501,7 +2213,6 @@ const main: {
                     "工具快捷键.QR",
                     "工具快捷键.open",
                     "工具快捷键.ding",
-                    "工具快捷键.record",
                     "工具快捷键.long",
                     "工具快捷键.copy",
                     "工具快捷键.save",
@@ -2570,7 +2281,6 @@ const main: {
                     "全局工具快捷键.QR",
                     "全局工具快捷键.open",
                     "全局工具快捷键.ding",
-                    "全局工具快捷键.record",
                     "全局工具快捷键.long",
                     "全局工具快捷键.copy",
                     "全局工具快捷键.save",
@@ -2700,9 +2410,6 @@ const bind: { [k in KeyPath]?: KeyPath[] } = {
     离线OCR: ["OCR.类型"],
     "AI.在线模型": ["OCR.类型"],
     "翻译.翻译器": ["屏幕翻译.语言.from", "屏幕翻译.语言.to"],
-    "录屏.提示.键盘.位置.offsetX": ["录屏.提示.键盘.位置"],
-    "录屏.提示.键盘.位置.offsetY": ["录屏.提示.键盘.位置"],
-    "录屏.提示.键盘.大小": ["录屏.提示.键盘.位置"],
     "保存名称.前缀": ["_filename"],
     "保存名称.时间": ["_filename"],
     "保存名称.后缀": ["_filename"],
@@ -3588,7 +3295,7 @@ function sortable() {
         },
     ) => {
         const idKey = "sortableid";
-        const dataType = "esearch/sortable";
+        const dataType = "handpick/sortable";
 
         function bindEl(child: ElType<HTMLElement>) {
             child
@@ -5145,7 +4852,7 @@ function releaseVersion(tag: string) {
     return tag.replace(/^v/, "").match(/^\d+(?:\.\d+)*/)?.[0] ?? tag;
 }
 
-const forkReleasesApi = "repos/baichuanjiang2-cell/eSearch-paste/releases";
+const forkReleasesApi = "repos/baichuanjiang2-cell/HandPick/releases";
 
 /** 中转镜像会整站失效（限流 429、直接连不上），这时退回直连，否则面板永远空白 */
 async function fetchForkReleases() {
@@ -5317,7 +5024,7 @@ function about() {
                         if (i === 0) {
                             tags.add(txt("最新版本"));
                         }
-                        const baseName = `esearch_paste-${rv}-${process.platform}-${process.arch}`;
+                        const baseName = `handpick-${rv}-${process.platform}-${process.arch}`;
                         const assets = r.assets.filter((i) =>
                             i.name.startsWith(baseName),
                         );
@@ -5374,7 +5081,7 @@ function about() {
                 noI18n(packageJson.license),
             ),
         ]),
-        view().add("本软件基于 eSearch（xushengfeng）修改"),
+        view().add("HandPick（信手拈来）基于 eSearch（xushengfeng）修改"),
     ]);
 
     return el.add([

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=HandPick
+Comment=识屏 · 剪贴板历史 · 翻译
+GenericName=HandPick
+Exec=handpick %U
+Icon=handpick
+Type=Application
+StartupNotify=true
+Categories=Graphics;System;Utility;
+MimeType=image/png;image/jpeg;image/svg+xml;

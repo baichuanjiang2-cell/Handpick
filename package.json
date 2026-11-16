@@ -1,7 +1,8 @@
 {
-    "name": "eSearch",
+    "name": "handpick",
+    "productName": "HandPick",
     "version": "15.7.3",
-    "description": "识屏 · 录屏 · 剪贴板历史 · 翻译",
+    "description": "HandPick · 信手拈来 —— 识屏 · 剪贴板历史 · 翻译",
     "main": "./out/main/main.js",
     "scripts": {
         "pack": "npm run build && electron-builder --dir -c electron-builder.config.js",
@@ -20,7 +21,7 @@
         "name": "xsf",
         "email": "xushengfeng_zg@163.com"
     },
-    "homepage": "https://github.com/baichuanjiang2-cell/eSearch-paste/",
+    "homepage": "https://github.com/baichuanjiang2-cell/HandPick/",
     "license": "GPL-3.0",
     "packageManager": "pnpm@10.17.0",
     "dependencies": {
@@ -37,10 +38,8 @@
         "esearch-seg": "1.1.9",
         "fabric": "^7.4.0",
         "fuse.js": "^7.1.0",
-        "gifenc": "^1.0.3",
         "hex-to-css-filter": "^5.4.0",
         "hotkeys-js": "^3.13.7",
-        "mediabunny": "^1.14.3",
         "minimist": "^1.2.8",
         "myde-dbus": "^0.5.2",
         "node-screenshots": "^0.2.8",

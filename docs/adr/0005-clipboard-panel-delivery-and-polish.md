@@ -29,7 +29,7 @@ dist: npm run build && electron-builder -p never -c electron-builder.config.js
 
 `artifactName` 改为以 `esearch_paste-` 开头。**这只改文件名**：`productName`（`eSearch`）、`appId`（`com.esearch.app`）、`executableName`（`e-search`）全部保持上游原值，因此数据目录仍是 `%APPDATA%\eSearch`，安装记录也与官方版视为同一应用。之所以不改成独立身份，是因为 **`productName` 决定用户数据目录**——一改，已有的配置、剪贴板历史、加密密钥就全部读不到，等于清零。而文件名前缀能解决「与官方发布包同名同版本、分不清哪个是哪个」的实际困扰，且零风险。
 
-打包所需的 5 个外部资源（PPOCR 模型 ×2、分割模型、`copy.exe`、`ffmpeg.exe`）已预先下载到仓库内，`beforePack` 会跳过下载。这些路径都在 `.gitignore` 里，不进版本库。
+打包所需的 4 个外部资源（PPOCR 模型 ×2、分割模型、`copy.exe`）已预先下载到仓库内，`beforePack` 会跳过下载。这些路径都在 `.gitignore` 里，不进版本库。
 
 **GitHub 直连可用，不需要配镜像**——实测 `curl -sL` 拉 `ctrlc` release 返回 HTTP 200、147968 字节、1 次重定向。`electron-builder.config.js:93` 那行被注释掉的 `gh-proxy.com` 镜像**不要启用**。
 

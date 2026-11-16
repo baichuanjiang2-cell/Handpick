@@ -11,12 +11,11 @@ const rootDir = path.join(
 
 /** 只允许纯文件名的 json（安全扫描要求：拒绝路径穿越与动态 require） */
 function readJson(name: string) {
-    if (!/^[A-Za-z0-9._-]+$/.test(name)) {
+    const base = path.basename(name);
+    if (!/^[A-Za-z0-9._-]+$/.test(base)) {
         throw new Error(`非法的翻译资源文件名: ${name}`);
     }
-    return JSON.parse(
-        fs.readFileSync(path.join(rootDir, path.basename(name)), "utf8"),
-    );
+    return JSON.parse(fs.readFileSync(path.join(rootDir, base), "utf8"));
 }
 
 const ignore = readJson("./ignore.json") as string[];

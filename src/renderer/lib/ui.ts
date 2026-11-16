@@ -16,7 +16,7 @@ function iconEl(src: IconType, cls?: string) {
 
 /**
  * 图标按钮：全软件的图标按钮统一从这里出，
- * 各页别再各写一份（历史上 editor/recorder/videoEditor/clip 各写过一遍）。
+ * 各页别再各写一份（历史上 editor/clip 各写过一遍）。
  * @param title 提示文字，不给就没有 tooltip
  * @param cls 额外类名，如固定星标的 "star-fill"（<img> 吃不到 CSS 变量的例外）
  */

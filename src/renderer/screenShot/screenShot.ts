@@ -39,7 +39,7 @@ function getCenterDistance(
 }
 
 let _command: string | undefined;
-let commandSavePath = "/dev/shm/esearch-img.png";
+let commandSavePath = "/dev/shm/handpick-img.png";
 let _useXDGDesktopProtal = false;
 
 function init(

@@ -34,14 +34,6 @@ export default defineConfig(({ mode }) => ({
                         "src/renderer/setting.html",
                     ),
                     ding: path.resolve(__dirname, "src/renderer/ding.html"),
-                    recorder: path.resolve(
-                        __dirname,
-                        "src/renderer/recorder.html",
-                    ),
-                    recorderTip: path.resolve(
-                        __dirname,
-                        "src/renderer/recorderTip.html",
-                    ),
                     browser_bg: path.resolve(
                         __dirname,
                         "src/renderer/browser_bg.html",
@@ -57,10 +49,6 @@ export default defineConfig(({ mode }) => ({
                     photoEditor: path.resolve(
                         __dirname,
                         "src/renderer/photoEditor.html",
-                    ),
-                    videoEditor: path.resolve(
-                        __dirname,
-                        "src/renderer/videoEditor.html",
                     ),
                     aiVision: path.resolve(
                         __dirname,
@@ -79,7 +67,7 @@ export default defineConfig(({ mode }) => ({
         plugins: [
             ViteImageOptimizer({
                 cache: true,
-                cacheLocation: path.join(tmpdir(), "eSearch_build"),
+                cacheLocation: path.join(tmpdir(), "handpick_build"),
                 logStats: false,
                 include: /.*\svg$/,
             }),

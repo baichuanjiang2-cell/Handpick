@@ -80,6 +80,35 @@ class Store {
         return xget(this.defaultData as Record<string, unknown>, keyPath);
     }
 
+    remove(keyPath: string) {
+        const store = this.getStore();
+        const pathx = keyPath.split(".");
+        const last = pathx.pop() ?? "";
+        let obj = store;
+        for (const p of pathx) {
+            if (obj[p]?.constructor !== Object) return;
+            obj = obj[p] as data;
+        }
+        if (!(last in obj)) return;
+        delete obj[last];
+        this.setStore(store);
+    }
+
+    removeArrayValue(keyPath: string, value: string) {
+        const store = this.getStore();
+        const pathx = keyPath.split(".");
+        const last = pathx.pop() ?? "";
+        let obj = store;
+        for (const p of pathx) {
+            if (obj[p]?.constructor !== Object) return;
+            obj = obj[p] as data;
+        }
+        const arr = obj[last];
+        if (!Array.isArray(arr) || !arr.includes(value)) return;
+        obj[last] = arr.filter((x) => x !== value);
+        this.setStore(store);
+    }
+
     clear() {
         this.init();
     }

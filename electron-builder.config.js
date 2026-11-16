@@ -129,42 +129,14 @@ const beforePack = async () => {
             ),
         );
     }
-    if (!checkPath("./lib/ffmpeg")) {
-        const winpath = "ffmpeg-n6.1-latest-win64-gpl-6.1";
-        const o = {
-            win32: {
-                x64: `${githubUrl}/xushengfeng/eSearch/releases/download/13.0.0-beta.1/ffmpeg-win32-x64.zip`,
-            },
-            darwin: {
-                x64: `${githubUrl}/xushengfeng/eSearch/releases/download/13.0.0-beta.1/ffmpeg-darwin-x64.zip`,
-                arm64: `${githubUrl}/xushengfeng/eSearch/releases/download/13.0.0-beta.1/ffmpeg-darwin-arm64.zip`,
-            },
-        };
-        if (o?.[process.platform]?.[arch]) {
-            ensureDir("./lib/ffmpeg");
-            await downloadUnzip(
-                o[process.platform][process.arch],
-                "./lib/ffmpeg/",
-            );
-            if (process.platform === "win32") {
-                fs.copyFileSync(
-                    path.join("./lib/ffmpeg/", winpath, "bin", "ffmpeg.exe"),
-                    path.join("./lib/ffmpeg/", "ffmpeg.exe"),
-                );
-                fs.rmSync(path.join("./lib/ffmpeg/", winpath), {
-                    recursive: true,
-                });
-            }
-        }
-    }
 };
 
 /**
  * @type import("electron-builder").Configuration
  */
 const build = {
-    appId: "com.esearch.app",
-    executableName: "e-search",
+    appId: "com.handpick.app",
+    executableName: "handpick",
     directories: {
         output: "build",
     },
@@ -206,10 +178,11 @@ const build = {
         },
     ],
     asar: false,
-    // 产物文件名加自定义前缀，避免与上游官方发布包同名同版本互相混淆。
-    // 只影响文件名：productName / appId / executableName 保持上游原值，
-    // 数据目录（%APPDATA%\eSearch）与安装记录都不会因此改变。
-    artifactName: `esearch_paste-\${version}-\${platform}-${arch}.\${ext}`,
+    // 产物文件名加 handpick 前缀，避免与上游官方发布包同名同版本互相混淆。
+    // productName / appId / executableName 已随品牌更名切换为 HandPick 体系
+    // （见 docs/adr/0016-rebrand-to-handpick.md），默认数据目录变为
+    // %APPDATA%\HandPick，首次启动会自动从旧目录（eSearch）迁移数据。
+    artifactName: `handpick-\${version}-\${platform}-${arch}.\${ext}`,
     beforePack: beforePack,
     linux: {
         category: "Utility",
@@ -225,12 +198,6 @@ const build = {
             "!node_modules/onnxruntime-node/bin/napi-v6/win32",
             "!node_modules/onnxruntime-node/bin/napi-v6/darwin",
         ],
-    },
-    deb: {
-        depends: ["ffmpeg"],
-    },
-    rpm: {
-        depends: ["ffmpeg-free"],
     },
     mac: {
         files: [
@@ -385,7 +352,6 @@ const ignoreModule = [
     "node-abi",
     "tr46",
     "argparse",
-    "mediabunny",
     "picture_match",
 ];
 for (const i of ignoreModule) {

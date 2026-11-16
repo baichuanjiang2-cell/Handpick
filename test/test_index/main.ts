@@ -8,7 +8,7 @@ import type { setting } from "../../src/ShareTypes";
 
 type state = boolean | null;
 
-const testConfigTempPath = path.join(os.tmpdir(), "eSearch_test_dir");
+const testConfigTempPath = path.join(os.tmpdir(), "handpick_test_dir");
 
 const someSetting = {
     "引擎.翻译": [{ name: "翻译", url: "translate/?text=%s" }],
@@ -171,31 +171,6 @@ const testList: {
         },
     },
     { name: "二维码" },
-    { name: "普通录屏", crossState: true },
-    {
-        name: "录屏（旧）",
-        crossState: true,
-        config: { "录屏.模式": "old" },
-    },
-    {
-        name: "录屏（旧）.摄像头",
-        crossState: true,
-        config: { "录屏.模式": "old" },
-    },
-    {
-        name: "录屏（旧）.麦克风",
-        crossState: true,
-        config: { "录屏.模式": "old" },
-    },
-    {
-        name: "录屏（旧）.系统声音",
-        crossState: true,
-        config: { "录屏.模式": "old" },
-    },
-    { name: "录屏（旧）.短视频", config: { "录屏.模式": "old" } },
-    { name: "录屏（旧）.长视频", config: { "录屏.模式": "old" } },
-    { name: "录屏（旧）.光标和键盘", config: { "录屏.模式": "old" } },
-    { name: "录屏（旧）.虚拟背景", config: { "录屏.模式": "old" } },
     { name: "截屏美化" },
 ];
 
@@ -499,7 +474,7 @@ const defaultSetting: setting = {
         快速保存: false,
         保存并复制: false,
     },
-    保存名称: { 前缀: "eSearch-", 时间: "YYYY-MM-DD-HH-mm-ss-S", 后缀: "" },
+    保存名称: { 前缀: "HandPick-", 时间: "YYYY-MM-DD-HH-mm-ss-S", 后缀: "" },
     框选后默认操作: "no",
     快速截屏: { 模式: "clip", 路径: "" },
     引擎: {
@@ -566,64 +541,6 @@ const defaultSetting: setting = {
         频率: "start",
         模式: "小版本",
         忽略版本: "",
-    },
-    录屏: {
-        模式: "normal",
-        自动录制: true,
-        自动录制延时: 3,
-        视频比特率: 2.5,
-        摄像头: {
-            开启: false,
-            镜像: false,
-            设备: "",
-            背景: {
-                模式: "none",
-                模糊: 40,
-                imgUrl: "",
-                videoUrl: "",
-                fit: "cover",
-            },
-        },
-        音频: {
-            设备列表: [],
-            启用系统内录: true,
-        },
-        转换: {
-            格式: "webm",
-            码率: 2.5,
-            帧率: 30,
-            其他: "",
-            高质量gif: false,
-            分段: 10,
-        },
-        提示: {
-            键盘: {
-                开启: false,
-                位置: { x: "+", y: "+", offsetX: 4, offsetY: 4 },
-                大小: 1,
-            },
-            鼠标: {
-                开启: false,
-            },
-            光标: {
-                开启: false,
-                样式: "width: 24px;\nheight: 24px;\nborder-radius: 50%;\nbackground-color: #ff08;",
-            },
-        },
-        大小: {
-            x: 0,
-            y: 0,
-            width: 800,
-            height: 600,
-        },
-        超级录屏: {
-            编码选择: "性能优先",
-            关键帧间隔: 150,
-            格式: "gif",
-            缩放: 2,
-            自动停止录制: 5,
-            导出后关闭: false,
-        },
     },
     屏幕翻译: {
         type: "ding",
@@ -708,7 +625,7 @@ async function selectTest() {
         JSON.stringify(settingX, null, 4),
     );
     // 程序名走字面量相对路径，参数走数组（安全扫描要求）
-    execFileSync("../../build/linux-unpacked/e-search", [
+    execFileSync("../../build/linux-unpacked/handpick", [
         "--userData",
         testConfigTempPath,
     ]);

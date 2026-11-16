@@ -1,8 +1,8 @@
-# eSearch 项目指南
+# HandPick 项目指南
 
 ## 项目概述
 
-eSearch 是一个基于 Electron 的跨平台桌面应用，提供截屏、OCR、搜索、翻译、贴图、屏幕翻译、以图搜图、滚动截屏、录屏等功能。
+HandPick（信手拈来）是一个基于 Electron 的跨平台桌面应用，提供截屏、OCR、搜索、翻译、贴图、屏幕翻译、以图搜图、滚动截屏等功能。它基于上游 [eSearch](https://github.com/xushengfeng/eSearch) 定制，整体更名过程见 [ADR 0016](docs/adr/0016-rebrand-to-handpick.md)。
 
 ## 技术栈
 
@@ -31,6 +31,12 @@ pnpm run start
 pnpm run dist
 ```
 
+### 环境注意
+
+- `pnpm install` **不要加 `--ignore-scripts`**：Electron 的可执行程序由安装脚本下载，跳过会报 `Error: Electron uninstall`。
+- `pnpm run start` 是 `electron-vite preview`，每次都会先构建再启动；`pnpm run dev` 目前跑不起来（带 `.node` 原生库的调试未配置）。
+- 启动报错排查见[本地启动与排障](./docs/develop/本地启动与排障.md)；本轮改动的状态、验证与待办见[录屏移除交接](./docs/录屏移除交接.md)。
+
 ## 项目结构
 
 - **src/main/**: Electron 主进程，入口为 main.ts
@@ -41,11 +47,8 @@ pnpm run dist
   - ding/ - 贴图功能 还有贴图翻译
   - setting/ - 设置
   - photoEditor 高级图片编辑
-  - recorder/ - 录屏（旧）
-  - recorderTip/ - 录屏覆盖层，如显示倒计时、结束等
   - translate/ - 翻译，展示不同翻译器结果 作为主页面子页面
   - translator/ 屏幕翻译
-  - videoEditor/ 超级录屏、普通录屏，包括跟踪鼠标、视频编辑
 
 还有一些库
   - lib/ 杂项 公共功能

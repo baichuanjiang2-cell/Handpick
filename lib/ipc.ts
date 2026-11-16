@@ -34,15 +34,6 @@ type VoidKeys<M> = {
     [K in keyof M]: IsVoidFunction<M[K]> extends true ? K : never;
 }[keyof M];
 
-/** 录屏选区，坐标为截屏画布像素，相对所选屏幕 */
-export type RecordRect = {
-    rect: [number, number, number, number];
-    id: string;
-    w: number;
-    h: number;
-    r: number;
-};
-
 type Message = {
     clip_show: () => void;
     clip_close: () => void;
@@ -57,23 +48,14 @@ type Message = {
         rect: { w: number; h: number; x: number; y: number },
     ) => void;
     clip_mac_app: () => { canceled: boolean; filePaths: string[] };
-    clip_record: (
-        rect: [number, number, number, number],
-        id: string,
-        w: number,
-        h: number,
-        r: number,
-    ) => void;
     getMousePos: () => {
         ab: { x: number; y: number };
         po: { x: number; y: number };
     };
     clip_translate: (t: Omit<translateWinType, "type">) => void;
     clip_editor: (img: string) => void;
-    /** 普通录屏：固定录制区域；超级录屏：不传 */
-    clip_recordx: (opt?: RecordRect) => void;
-    save_file_path: (type: string, isVideo?: boolean) => string;
-    ok_save: (m: string, isVideo?: boolean) => void;
+    save_file_path: (type: string) => string;
+    ok_save: (m: string) => void;
     clip_stop_long: () => void;
     clip_init: (
         displays: Electron.Display[],
@@ -144,28 +126,6 @@ type Message = {
     setAutoStart: (value: boolean) => void;
     theme: (t: NativeTheme["themeSource"]) => void;
     dingIgnore: (ignore: boolean) => void;
-    recorderReady: () => void;
-    recordInit: (
-        id: string,
-        r: [number, number, number, number],
-        screenW: number,
-        screenH: number,
-    ) => void;
-    recordStartStop: () => void;
-    recordStop: () => void;
-    recordStart: () => void;
-    recordTime: (time: string) => void;
-    recordCamera: (camera: boolean) => void;
-    recordState: (state: "stop" | "pause") => void;
-    recordSavePath: (ext: string) => void;
-    /** 悬浮条 → 编辑器：切换暂停 / 继续（仅区域录屏） */
-    recordPauseToggle: () => void;
-    /** 编辑器 → 悬浮条：录制状态镜像（开始前不录由覆盖层就绪条负责） */
-    recordStateX: (state: "recording" | "paused" | "converting") => void;
-    /** 编辑器 → 悬浮条：直出转换进度 0~1 */
-    exportProgress: (p: number) => void;
-    /** 悬浮条 → 编辑器：取消直出转换 */
-    exportCancel: () => void;
     dingShare: (
         data:
             | { type: "close"; id: string; closeAll: boolean }
@@ -183,16 +143,13 @@ type Message = {
         url: string,
         type: "translate" | "ding",
     ) => void;
-    superRecorderInit: (sourceId: string, fixed?: RecordRect) => void;
     superPhotoEditorInit: (img: string) => void;
-    recordMemWarning: () => void;
     translatorInit: (
         id: number,
         display: Display[],
         rect: { x: number; y: number; w: number; h: number },
     ) => void;
     dingMouse: (x: number, y: number) => void;
-    recordSavePathReturn: (path: string) => void; // todo remove
     editorInit: (name: number, list: MainWinType) => void;
     browserNew: (id: number, url: string) => void;
     browserTitle: (id: number, title: string) => void;
@@ -265,7 +222,6 @@ type AppAction =
     | "pauseToggle"
     | "ocr"
     | "imageSearch"
-    | "superRecord"
     | "browserOpenToggle"
     | "dingFromClipboard"
     | "mainModeAuto"
@@ -351,8 +307,6 @@ function isKnownKey(key: unknown): key is keyof Message {
         case "clip_mac_app":
         case "clip_ocr":
         case "clip_qr":
-        case "clip_record":
-        case "clip_recordx":
         case "clip_save":
         case "clip_search":
         case "clip_show":
@@ -379,21 +333,6 @@ function isKnownKey(key: unknown): key is keyof Message {
         case "ok_save":
         case "openUrl":
         case "open_this_browser":
-        case "recordCamera":
-        case "recordInit":
-        case "recordMemWarning":
-        case "recordPauseToggle":
-        case "recordSavePath":
-        case "recordSavePathReturn":
-        case "recordStart":
-        case "recordStartStop":
-        case "recordState":
-        case "recordStateX":
-        case "recordStop":
-        case "recordTime":
-        case "recorderReady":
-        case "exportCancel":
-        case "exportProgress":
         case "reload":
         case "reloadMainFromSetting":
         case "runPath":
@@ -405,7 +344,6 @@ function isKnownKey(key: unknown): key is keyof Message {
         case "shellSection":
         case "shellSlot":
         case "superPhotoEditorInit":
-        case "superRecorderInit":
         case "systemLan":
         case "tabView":
         case "tabViewSize":

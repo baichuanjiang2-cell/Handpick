@@ -130,13 +130,11 @@
 
 ## 按钮选项
 
-你可以在文字识别、以图搜图、录屏、屏幕翻译和广截屏按钮右上角看到一个小圆点，右键点击按钮或点击小圆点展开更多选项。
+你可以在文字识别、以图搜图、屏幕翻译和广截屏按钮右上角看到一个小圆点，右键点击按钮或点击小圆点展开更多选项。
 
 文字识别和以图搜图可以更改引擎。
 
 广截屏可以选择长截屏还是广截屏，[文档](long_clip.md)有他们之间区别的介绍。
-
-录屏可选择普通录屏、超级录屏或录屏（旧） [录屏文档](record.md)。
 
 屏幕翻译可选择实时翻译或贴图翻译 [屏幕翻译文档](translate.md#屏幕翻译)。
 
@@ -221,18 +219,18 @@
 为了使用截屏功能，需要在 设置-高级 设置截屏命令
 
 ```shell
-flameshot full -p /dev/shm/esearch-img.png
+flameshot full -p /dev/shm/handpick-img.png
 ```
 
 或
 
 ```shell
-scrot /dev/shm/esearch-img.png
+scrot /dev/shm/handpick-img.png
 ```
 
-你可以使用 flameshot 或桌面环境的截屏工具，将截屏保存到`/dev/shm/esearch-img.png`（你也可以设置其他位置），**eSearch**会自动识别并打开。
+你可以使用 flameshot 或桌面环境的截屏工具，将截屏保存到`/dev/shm/handpick-img.png`（你也可以设置其他位置），**HandPick**会自动识别并打开。
 
-既然都用 flameshot，那用 eSearch 岂不是画蛇添足？虽然 eSearch 在一些方面还比不过 flameshot，但在取色器、OCR 校对、广截屏、搜索翻译等方面我用得还是挺顺手的，建议选择适合自己的工具。
+既然都用 flameshot，那用 HandPick 岂不是画蛇添足？虽然 HandPick 在一些方面还比不过 flameshot，但在取色器、OCR 校对、广截屏、搜索翻译等方面我用得还是挺顺手的，建议选择适合自己的工具。
 
 ## 托盘截屏样式
 
