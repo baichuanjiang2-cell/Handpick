@@ -29,8 +29,8 @@ Grab either file from [Releases](https://github.com/baichuanjiang2-cell/HandPick
 
 | File | Size | Notes |
 | --- | --- | --- |
-| `handpick-15.7.3-win32-x64.exe` | ~186 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
-| `handpick-15.7.3-win32-x64.zip` | ~246 MB | Portable — unzip and run |
+| `handpick-15.7.4-win32-x64.exe` | ~155 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
+| `handpick-15.7.4-win32-x64.zip` | ~203 MB | Portable — unzip and run |
 
 The `handpick-` prefix exists to avoid confusion with the official build (`eSearch-<version>-win32-x64.exe`). As of 15.7.3 the app itself is fully rebranded (separate appId and data directory, see [ADR 0016](docs/adr/0016-rebrand-to-handpick.md)) — HandPick and the upstream official build are two independent applications and will not overwrite each other.
 
@@ -50,6 +50,7 @@ Windows may show the blue "Windows protected your PC" warning; click **More info
 | **Clipboard history** | A searchable record of what you copied, independent of the current system clipboard. Text, images and file paths; the Control Center's default page |
 | **Unified entries** | The tray's right-click menu shrank from 20 items to 4 (open Control Center / quick screenshot / pause recording / exit); a left click still does a quick screenshot. All remaining features live in the Control Center's **tool groups**, backed by the same action table as the tray, so nothing gets lost |
 | **Paper-ink design** | One consistent look app-wide: warm paper background, gold / vermilion accents, hairline rules and small-radius cards; headings in Source Han Serif, body in Source Han Sans, numerals in Fraunces (a ~2.7 MB common-character subset ships with the app so the typeface never falls back). Dark mode is ink-black with amber glow |
+| **Light standby footprint** | Once tucked back into the taskbar, the app hands memory back to the system: standby memory 375 MB → 130 MB (-65%) and standby CPU drops to zero. Clipboard watching is event-driven (reads the clipboard only when it actually changes), windows are created on demand, and heavyweight models load only when first used — see [ADR 0017](docs/adr/0017-clipboard-sequence-number-polling.md) / [ADR 0018](docs/adr/0018-capture-window-on-demand-and-shell-views-ephemeral.md) |
 | **Edit entries** | Text and file entries can be edited in place (images can't). If an edit makes two entries identical, they are merged |
 | **Full-size image view** | Image entries can be opened full-size in a modal, instead of only the thumbnail |
 | **Pin / Recycle bin** | Pinned entries are never auto-pruned, float to the top, and get a filled gold star plus a gold bar on the card. Deleting moves to the recycle bin and can be undone |

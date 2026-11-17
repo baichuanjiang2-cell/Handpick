@@ -24,3 +24,4 @@ script/make_aur/e-search/usr/share/applications/e-search.desktop
 .taste-skill/
 .scratch/assets/
 .scratch/rebrand-backup/
+.scratch/perf-userdata-*/

@@ -1,7 +1,7 @@
 {
     "name": "handpick",
     "productName": "HandPick",
-    "version": "15.7.3",
+    "version": "15.7.4",
     "description": "HandPick · 信手拈来 —— 识屏 · 剪贴板历史 · 翻译",
     "main": "./out/main/main.js",
     "scripts": {
