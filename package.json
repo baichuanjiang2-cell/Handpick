@@ -40,6 +40,7 @@
         "fuse.js": "^7.1.0",
         "hex-to-css-filter": "^5.4.0",
         "hotkeys-js": "^3.13.7",
+        "koffi": "^3.3.8",
         "minimist": "^1.2.8",
         "myde-dbus": "^0.5.2",
         "node-screenshots": "^0.2.8",

@@ -26,6 +26,7 @@ class Store {
     private configPath: string;
     private data: data | undefined;
     private defaultData: data;
+    private writeTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(op: { configPath: string; defaultData?: data }) {
         this.configPath = op.configPath;
@@ -34,6 +35,9 @@ class Store {
             this.init();
         }
         this.data = this.getStore();
+        // 防抖窗口内的 set 可能还没落盘进程就退出了（含 app.exit，
+        // 它不触发 will-quit）：exit 事件兜底同步写一次
+        process.on("exit", () => this.flush());
     }
 
     setDefaultData(defaultData: setting) {
@@ -58,7 +62,28 @@ class Store {
 
     private setStore(data: data) {
         this.data = data;
-        fs.writeFileSync(this.configPath, JSON.stringify(data, null, 2));
+        // 防抖合并写盘：窗口尺寸/位置这类高频设置不再每次都同步重写整份 config；
+        // 内存里的 data 立即生效，磁盘 500ms 内跟上，进程退出时强制落盘
+        if (this.writeTimer) clearTimeout(this.writeTimer);
+        this.writeTimer = setTimeout(() => this.flush(), 500);
+        this.writeTimer.unref?.();
+    }
+
+    /** 立即把当前配置写盘，防抖窗口内的多次 set 合并成一次 */
+    flush() {
+        if (this.writeTimer) {
+            clearTimeout(this.writeTimer);
+            this.writeTimer = null;
+        }
+        if (this.data === undefined) return;
+        try {
+            fs.writeFileSync(
+                this.configPath,
+                JSON.stringify(this.data, null, 2),
+            );
+        } catch (e) {
+            console.error("配置写盘失败", e);
+        }
     }
 
     path() {

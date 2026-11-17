@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { ClipboardItem, clipboard, nativeImage, safeStorage } from "electron";
 import { t } from "../../lib/translate/translate";
 import type { ClipItem } from "../ShareTypes";
+import { clipboardSequence } from "./clipboardSeq";
 
 export type ClipConfig = {
     dir: string;
@@ -38,6 +39,10 @@ const IV_LEN = 12;
 const TAG_LEN = 16;
 const DAY = 24 * 60 * 60 * 1000;
 const IMAGE_MIMES = ["image/png", "image/jpeg"] as const;
+/** Win32 序号心跳间隔：序号查询是微秒级系统调用，250ms 保证采集延迟优于旧的 500ms 全量轮询 */
+const SEQ_POLL_MS = 250;
+/** 无序号 API 的平台：自适应轮询的空闲上限 */
+const ADAPTIVE_MAX_MS = 5000;
 /** 文件列表在系统剪贴板里的原始格式，按优先级排列 */
 const FILE_FORMATS: { format: string; encoding: "utf16le" | "utf8" }[] =
     process.platform === "win32"
@@ -110,6 +115,12 @@ export default class ClipboardHistory {
     private items: ClipItem[] = [];
     private byHash = new Map<string, ClipItem>();
     private timer: NodeJS.Timeout | null = null;
+    /** 主动停止标记：自适应轮询的异步链用它防止 stop() 后继续自我续期 */
+    private stopped = true;
+    /** 无序号平台：连续空转次数，用于把轮询间隔逐步放缓 */
+    private unchanged = 0;
+    /** 上一次读到的系统剪贴板序号（Win32），变化才做完整采集 */
+    private lastSeq = 0;
     private paused: boolean;
     private busy = false;
     /** 上一次采集到的剪贴板签名，用于判断「没有变化」 */
@@ -258,29 +269,76 @@ export default class ClipboardHistory {
 
     start() {
         if (this.timer) return;
-        const run = () => {
-            this.tick().catch((e) => console.error("剪贴板采集失败", e));
-        };
-        run();
-        this.timer = setInterval(run, Math.max(100, this.cfg.interval));
+        this.stopped = false;
+        // 先读序号再采集：采集与序号读取之间的任何变化都会在下次心跳补上，
+        // 反过来（先采后读）会把启动瞬间的一次变化永久吞掉。
+        const seq = clipboardSequence();
+        this.tick().catch((e) => console.error("剪贴板采集失败", e));
+        if (seq !== null) {
+            // Win32：序号心跳。250ms 读一个整数，序号变了才打开剪贴板做完整采集
+            this.lastSeq = seq;
+            this.timer = setInterval(() => this.seqTick(), SEQ_POLL_MS);
+        } else {
+            // 无序号 API 的平台：自适应轮询，空闲逐步放缓
+            this.unchanged = 0;
+            this.adaptiveTick(Math.max(100, this.cfg.interval));
+        }
     }
 
     stop() {
         if (!this.timer) return;
-        clearInterval(this.timer);
+        clearTimeout(this.timer);
         this.timer = null;
+        this.stopped = true;
+    }
+
+    private seqTick() {
+        const seq = clipboardSequence();
+        if (seq === null) return;
+        if (seq === this.lastSeq) return;
+        this.lastSeq = seq;
+        this.tick().catch((e) => console.error("剪贴板采集失败", e));
+    }
+
+    /** 无序号平台的后备：连续空转就把间隔翻倍，最高放缓到 5s，一旦有变化立刻恢复基准间隔 */
+    private adaptiveTick(delayMs: number) {
+        this.timer = setTimeout(async () => {
+            this.timer = null;
+            const changed = await this.tick().catch((e) => {
+                console.error("剪贴板采集失败", e);
+                return false;
+            });
+            if (this.stopped) return;
+            const base = Math.max(100, this.cfg.interval);
+            if (changed) this.unchanged = 0;
+            else this.unchanged++;
+            const delay = changed
+                ? base
+                : Math.min(
+                      base * 2 ** Math.min(this.unchanged, 4),
+                      ADAPTIVE_MAX_MS,
+                  );
+            this.adaptiveTick(delay);
+        }, delayMs);
     }
 
     setPaused(paused: boolean) {
         if (this.paused === paused) return;
         this.paused = paused;
-        if (!paused) this.lastSeen = "";
+        if (!paused) {
+            // 恢复采集要立刻看到当前剪贴板内容（旧行为），序号同步到当前值防止心跳重复采集
+            this.lastSeen = "";
+            this.lastSeq = clipboardSequence() ?? this.lastSeq;
+            this.tick().catch((e) => console.error("剪贴板采集失败", e));
+        }
         this.onPausedChange?.(paused);
         this.emit();
     }
 
-    private async readFiles() {
-        const items = await clipboard.read();
+    /** files / image 共用一次 clipboard.read 的结果 */
+    private async pickFiles(
+        items: Awaited<ReturnType<typeof clipboard.read>>,
+    ): Promise<string[]> {
         for (const { format, encoding } of FILE_FORMATS) {
             const item = items.find((i) => i.types.includes(format));
             if (!item) continue;
@@ -297,8 +355,7 @@ export default class ClipboardHistory {
         return [];
     }
 
-    private async readImage() {
-        const items = await clipboard.read();
+    private async pickImage(items: Awaited<ReturnType<typeof clipboard.read>>) {
         for (const mime of IMAGE_MIMES) {
             const item = items.find((i) => i.types.includes(mime));
             if (!item) continue;
@@ -319,10 +376,11 @@ export default class ClipboardHistory {
     }
 
     private async readPayload(): Promise<Payload | null> {
-        const files = await this.readFiles();
+        const items = await clipboard.read();
+        const files = await this.pickFiles(items);
         if (files.length > 0)
             return { type: "file", files, hash: hashOf(files.join("\u0000")) };
-        const image = await this.readImage();
+        const image = await this.pickImage(items);
         if (image)
             return {
                 type: "image",
@@ -336,19 +394,20 @@ export default class ClipboardHistory {
         return null;
     }
 
-    private async tick() {
-        if (this.paused || this.busy) return;
+    /** @returns 本轮是否产生了可见变化（新记录或重复项置顶），自适应轮询据此决定下一步节奏 */
+    private async tick(): Promise<boolean> {
+        if (this.paused || this.busy) return false;
         this.busy = true;
         try {
             const payload = await this.readPayload();
             if (!payload) {
                 this.lastSeen = "";
-                return;
+                return false;
             }
-            if (payload.hash === this.lastSeen) return;
+            if (payload.hash === this.lastSeen) return false;
             this.lastSeen = payload.hash;
             // 回声抑制：本程序刚写进剪贴板的内容不再记录
-            if (payload.hash === this.lastWritten) return;
+            if (payload.hash === this.lastWritten) return false;
 
             const exist = this.byHash.get(payload.hash);
             if (exist) {
@@ -357,9 +416,10 @@ export default class ClipboardHistory {
                 exist.deleted = false;
                 this.save();
                 this.emit();
-                return;
+                return true;
             }
             this.add(payload);
+            return true;
         } finally {
             this.busy = false;
         }

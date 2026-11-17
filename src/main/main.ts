@@ -19,6 +19,7 @@ import {
     ipcMain,
     nativeImage,
     nativeTheme,
+    powerMonitor,
     screen,
     session,
     shell,
@@ -61,6 +62,7 @@ import type {
     功能,
 } from "../ShareTypes";
 import ClipboardHistory from "./clipboardHistory";
+import { trimWorkingSets } from "./memoryTrim";
 
 const runPath = join(resolve(__dirname, ""), "../../");
 const tmpDir = join(tmpdir(), "HandPick");
@@ -180,7 +182,9 @@ const screenShotArgs = [
     store.get("使用XDGDesktopPortal"),
 ] as const;
 
-const keepClip = store.get("保留截屏窗口");
+// 常驻截窗设置在 whenReady 里读：模块顶层 store.get 时 defaultSetting 还没注入，
+// 默认值永远不会生效（读到的只能是 undefined 或用户配置里的显式值）
+let keepClip = false;
 
 /** 剪贴板历史 */
 let clipHistory: ClipboardHistory | null = null;
@@ -689,7 +693,12 @@ const appActions: Record<AppAction, () => void> = {
     feedback: () => {
         shell.openExternal(
             feedbackUrl({
-                title: `[${clipHistoryWindow?.getTitle()?.replace(/^HandPick[ -]/, "")?.replace(/^eSearch[ -]/, "") ?? "……界面"}] 存在……问题`,
+                title: `[${
+                    clipHistoryWindow
+                        ?.getTitle()
+                        ?.replace(/^HandPick[ -]/, "")
+                        ?.replace(/^eSearch[ -]/, "") ?? "……界面"
+                }] 存在……问题`,
             }),
         );
     },
@@ -775,6 +784,8 @@ app.whenReady().then(() => {
     store.setDefaultData(defaultSetting);
 
     fixSettingTree();
+
+    keepClip = store.get("保留截屏窗口");
 
     // 初始化语言
     lan(store.get("语言.语言") || "");
@@ -875,6 +886,18 @@ app.whenReady().then(() => {
     });
     if (store.get("剪贴板历史.开启")) clipHistory.start();
     notiClipHistoryFirstRun();
+
+    // 系统挂起时没有剪贴板活动，心跳与轮询一并停掉；唤醒后立即补采一次，
+    // 睡眠期间发生过的剪贴板变化不会漏。
+    powerMonitor.on("suspend", () => clipHistory?.stop());
+    powerMonitor.on("resume", () => {
+        if (store.get("剪贴板历史.开启")) clipHistory?.start();
+        maybeTrimStandby();
+    });
+
+    // 开机即待机（启动即最小化、之后无人碰窗口）没有窗口事件可触发裁剪，
+    // 启动 90 秒后补一次检查（此时 maybeTrimStandby 的 60 秒启动保护已过期）
+    setTimeout(maybeTrimStandby, 90_000);
 
     // tmp目录
     if (!existsSync(tmpDir)) mkdir(tmpDir, () => {});
@@ -1290,12 +1313,14 @@ function exitFullScreen() {
         clipWindow = null;
         clipWindowLoaded = false;
     }
+    maybeTrimStandby();
 }
 
 /** 隐藏截屏窗口 */
 function hideClip() {
     clipWindow?.setSimpleFullScreen(false);
     clipWindow?.hide();
+    maybeTrimStandby();
 }
 
 /** 快速截屏 */
@@ -1502,6 +1527,7 @@ function dingObj() {
             obj.set(id, v);
             v.win.on("closed", () => {
                 obj.delete(id);
+                maybeTrimStandby();
             });
         },
         delete: (id: number) => {
@@ -1527,6 +1553,30 @@ function dingObj() {
 
 // ding窗口
 const dingwindowList = dingObj();
+
+/** 程序启动时刻，用于跳过启动期的无谓裁剪 */
+const appStartedAt = Date.now();
+/**
+ * 待机裁剪：没有任何可见窗口（也没有贴图）时，把全部进程的工作集
+ * 移交系统待备列表（Chrome 最小化时的同款做法）。恢复窗口时按需软调页回，
+ * 系统内存紧张时这些页可以被立即回收。
+ */
+function maybeTrimStandby() {
+    // 启动初期页面还在加载，裁剪只会引发无谓的调页回
+    if (Date.now() - appStartedAt < 60_000) return;
+    // 延迟一拍再查可见性：minimize 事件触发瞬间窗口可能仍标记为可见，
+    // 顺带把一连串 close/blur/minimize 事件合并成一次裁剪
+    setTimeout(() => {
+        if (dingwindowList.size() > 0) return;
+        if (
+            BrowserWindow.getAllWindows().some(
+                (w) => !w.isDestroyed() && w.isVisible(),
+            )
+        )
+            return;
+        trimWorkingSets();
+    }, 200);
+}
 
 async function dingFromClipBoard() {
     const img = await readImageFromClipboard();
@@ -1604,7 +1654,11 @@ function createDingWindow(
                         type: d.level,
                     });
             });
-            dingWindow.setIgnoreMouseEvents(true);
+            // Windows 上 forward 把 mousemove 事件透传给贴图页，页面用它做事件驱动的
+            // 命中检测，代替主进程 10ms 一次的坐标推送
+            dingWindow.setIgnoreMouseEvents(true, {
+                forward: process.platform === "win32",
+            });
 
             dingWindow.setAlwaysOnTop(true, "screen-saver");
         }
@@ -1624,13 +1678,15 @@ function createDingWindow(
             ]);
         }
     }
-    // 自动改变鼠标穿透
-    if (!dingClickThroughRunning) {
+    // 自动改变鼠标穿透：Windows 走 forward 事件透传（贴图页自己发 dingIgnore），
+    // 其余平台没有 forward，保留主进程坐标轮询
+    if (process.platform !== "win32" && !dingClickThroughRunning) {
         dingClickThroughRunning = true;
         dingClickThrough();
     }
 }
 let dingClickThroughRunning = false;
+/** 非 Windows 平台的穿透检测后备：10ms 推一次鼠标坐标给贴图页 */
 function dingClickThrough() {
     if (dingwindowList.size() === 0) {
         dingClickThroughRunning = false;
@@ -1648,8 +1704,13 @@ function dingClickThrough() {
 }
 let dingThrogh: null | boolean = null;
 mainOn("dingIgnore", ([v]) => {
+    // 恢复穿透时带上 forward，贴图页才能继续收到 mousemove 做命中检测
     for (const [_, win] of dingwindowList.entries()) {
-        win.win.setIgnoreMouseEvents(dingThrogh === null ? v : dingThrogh);
+        win.win.setIgnoreMouseEvents(dingThrogh === null ? v : dingThrogh, {
+            forward:
+                (dingThrogh === null ? v : dingThrogh) === true &&
+                process.platform === "win32",
+        });
     }
 });
 
@@ -1933,6 +1994,13 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
     // 所以尺寸档位必须在还原之后重新施加一次。
     win.on("restore", () => applyClipHistorySize(win));
 
+    // 收进任务栏即销毁栏目子视图，待机内存只留壳本身；
+    // 还原后由渲染端 visibilitychange 重发 shellSection，视图按需重建
+    win.on("minimize", () => {
+        destroyShellViews(win);
+        maybeTrimStandby();
+    });
+
     // 失焦退下：控制中心丢焦点即最小化回任务栏按钮，入口还在，点任务栏即回。
     win.on("blur", () => {
         if (win.isDestroyed()) return;
@@ -2097,6 +2165,7 @@ async function createMainWindow(op: MainWinType) {
         delete mainWindowL[windowName];
         // 主搜索窗口都没了，剪贴板面板恢复置顶
         syncClipHistoryTop();
+        maybeTrimStandby();
     });
 
     // 浏览器大小适应
@@ -2532,9 +2601,29 @@ mainOn("shellRefreshSetting", () => {
     if (view && !view.webContents.isDestroyed()) view.webContents.reload();
 });
 
+/** 销毁控制中心的栏目子视图：切走栏目和最小化收壳时调用，常驻内存只留壳本身 */
+function destroyShellViews(host: BrowserWindow) {
+    for (const [key, v] of shellViews) {
+        shellViews.delete(key);
+        try {
+            host.contentView.removeChildView(v);
+            if (!v.webContents.isDestroyed()) v.webContents.close();
+        } catch {}
+    }
+}
+
 mainOn("shellSection", ([name], e) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     if (!win) return;
+    // 极限档：子视图不再常驻——切到别的栏目时把旧视图整体销毁，回到该栏目再重建
+    for (const [key, v] of shellViews) {
+        if (key === name) continue;
+        shellViews.delete(key);
+        try {
+            win.contentView.removeChildView(v);
+            if (!v.webContents.isDestroyed()) v.webContents.close();
+        } catch {}
+    }
     const showView = name !== "clipboard";
     for (const [key, v] of shellViews) {
         v.setVisible(showView && key === name);
@@ -2661,7 +2750,8 @@ const defaultSetting: setting = {
     设置版本: app.getVersion(),
     启动提示: true,
     dev: false,
-    保留截屏窗口: true,
+    // 默认按需创建截屏窗口：待机时省一整个渲染进程的内存；想要秒开可在设置里开回
+    保留截屏窗口: false,
     语言: { 语言: matchBestLan() },
     托盘: "彩色",
     快捷键: {
@@ -3258,9 +3348,7 @@ function releaseVersion(tag: string) {
 function checkUpdate(s手动检查?: boolean) {
     const version = store.get("设置版本");
     const m = store.get("更新.模式");
-    fetch(
-        "https://api.github.com/repos/baichuanjiang2-cell/HandPick/releases",
-    )
+    fetch("https://api.github.com/repos/baichuanjiang2-cell/HandPick/releases")
         .then((v) => v.json())
         .then((re) => {
             const isDev =

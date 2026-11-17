@@ -520,6 +520,7 @@ function pick2First(list: { text: string; lan: string }[], toPick: string[]) {
 }
 
 function detectLan(text: string) {
+    if (text.trim()) ensureFasttext();
     const d = text.trim() ? fasttext?.identify(text)?.alpha2 : undefined;
     detectedLan = d ?? undefined;
     updateChip();
@@ -607,21 +608,29 @@ renderOn("translateRefresh", refreshTranslators);
 
 input.el.value = inputText;
 
-/** 语言识别模型要联网下载，加载失败也得能打字翻译，所以不等它，好了再启用识别 */
+/** 语言识别模型要联网下载，加载失败也得能打字翻译，所以不等它，好了再启用识别。
+ * 模型（wasm + lid）有 8MB+，改为懒加载：打开翻译页不载，首次检测语言才载。 */
 let fasttext:
     | {
           identify(text: string): { alpha2: string | null } | undefined;
       }
     | undefined;
-initFastText()
-    .then((m) => m.FastText().loadModel())
-    .then((model) => {
-        fasttext = model;
-        if (input.el.value.trim()) detectLan(input.el.value);
-    })
-    .catch((err) => {
-        console.error("语言识别模型加载失败", err);
-    });
+let fasttextLoading: Promise<void> | null = null;
+
+function ensureFasttext(): Promise<void> {
+    if (!fasttextLoading) {
+        fasttextLoading = initFastText()
+            .then((m) => m.FastText().loadModel())
+            .then((model) => {
+                fasttext = model;
+                if (input.el.value.trim()) detectLan(input.el.value);
+            })
+            .catch((err) => {
+                console.error("语言识别模型加载失败", err);
+            });
+    }
+    return fasttextLoading;
+}
 
 if (inputText) {
     detectLan(inputText);

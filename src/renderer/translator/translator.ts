@@ -91,12 +91,13 @@ const sl = () =>
     });
 
 async function run() {
-    if (!OCR) return;
     const data = await screenshot(screenId, rect);
     if (!data) return;
     document.body.style.opacity = "1";
 
-    const ocrData = await OCR.ocr(data);
+    const ocr = await ensureOCR();
+    if (!ocr) return;
+    const ocrData = await ocr.ocr(data);
 
     textEl.clear();
     const textL: { text: string; el: ElType<HTMLDivElement> }[] = [];
@@ -183,11 +184,23 @@ const toolsEl = view("x")
         ),
     ]);
 
-let OCR: Awaited<ReturnType<typeof import("esearch-ocr").init>> | null = null;
+type OcrEngine = Awaited<ReturnType<typeof import("esearch-ocr").init>>;
 
-const ocrX = loadOCR(store, store.get("OCR.类型") || defaultOcrId);
+let OCR: OcrEngine | null = null;
+let ocrIniting: Promise<OcrEngine | null> | null = null;
 
-OCR = ocrX ? await ocrX.ocr.init(ocrX.config) : null;
+/** OCR 引擎懒加载：屏幕翻译窗打开不再立刻载入模型，首次识别才载 */
+function ensureOCR(): Promise<OcrEngine | null> {
+    if (OCR) return Promise.resolve(OCR);
+    if (!ocrIniting) {
+        ocrIniting = (async () => {
+            const ocrX = loadOCR(store, store.get("OCR.类型") || defaultOcrId);
+            OCR = ocrX ? await ocrX.ocr.init(ocrX.config) : null;
+            return OCR;
+        })();
+    }
+    return ocrIniting;
+}
 
 const mainEl = view().style({
     position: "absolute",

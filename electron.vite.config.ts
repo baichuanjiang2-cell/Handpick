@@ -7,7 +7,7 @@ import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 export default defineConfig(({ mode }) => ({
     main: {
         build: {
-            minify: false,
+            minify: "esbuild",
         },
     },
     renderer: {
@@ -61,8 +61,8 @@ export default defineConfig(({ mode }) => ({
                 },
             },
             assetsInlineLimit: 0,
-            minify: false,
-            sourcemap: true,
+            minify: "esbuild",
+            sourcemap: false,
         },
         plugins: [
             ViteImageOptimizer({

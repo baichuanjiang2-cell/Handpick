@@ -398,7 +398,12 @@ async function initOCR() {
     }
 }
 
-renderOn("dingMouse", ([x, y]) => {
+/**
+ * 命中检测：光标下的元素决定是否穿透与光标样式。
+ * Windows 上穿透开启时 mousemove 事件经 forward 透传进来，事件驱动、零轮询；
+ * 其余平台没有 forward，由主进程按 10ms 轮询推坐标（dingMouse 通道）。
+ */
+function dingHitTest(x: number, y: number) {
     const els = document.elementsFromPoint(x, y);
     let ignorex = false;
     for (const el of ignoreEl) {
@@ -414,6 +419,14 @@ renderOn("dingMouse", ([x, y]) => {
     }
 
     mouseMove(els[0] as HTMLElement, x, y);
+}
+
+document.addEventListener("mousemove", (e) => {
+    dingHitTest(e.clientX, e.clientY);
+});
+
+renderOn("dingMouse", ([x, y]) => {
+    dingHitTest(x, y);
 });
 
 function minimize(el: HTMLElement) {

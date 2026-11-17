@@ -460,6 +460,9 @@ document.addEventListener("visibilitychange", () => {
     if (document.hidden) return;
     appearanceMode = store.get("全局.深色模式");
     applyAppearance();
+    // 最小化期间主进程已销毁栏目子视图（待机省内存），还原后按当前栏目重建
+    if (currentSection !== "clipboard")
+        renderSend("shellSection", [currentSection]);
 });
 
 const winCtl = windowControls().style({ marginLeft: "0" });
