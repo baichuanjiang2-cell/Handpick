@@ -1992,7 +1992,20 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
 
     // 点任务栏图标 = 把最小化的面板还原，Windows 会沿用最小化前的尺寸，
     // 所以尺寸档位必须在还原之后重新施加一次。
-    win.on("restore", () => applyClipHistorySize(win));
+    // 还原瞬间主动补一次前台：置顶窗口经任务栏原生还原可能拿不到激活
+    //（Electron/Chromium 已知怪癖），拿不到就会立刻 blur，被「失焦退下」
+    // 误判成用户点了别处，窗口闪现一下就缩回任务栏。
+    let lastRestoreAt = 0;
+    win.on("restore", () => {
+        lastRestoreAt = Date.now();
+        applyClipHistorySize(win);
+        syncClipHistoryTop();
+        setTimeout(() => {
+            if (win.isDestroyed()) return;
+            if (!win.isVisible() || win.isFocused()) return;
+            win.focus();
+        }, 50);
+    });
 
     // 收进任务栏即销毁栏目子视图，待机内存只留壳本身；
     // 还原后由渲染端 visibilitychange 重发 shellSection，视图按需重建
@@ -2002,9 +2015,20 @@ function createClipHistoryWindow(o?: { startMinimized?: boolean }) {
     });
 
     // 失焦退下：控制中心丢焦点即最小化回任务栏按钮，入口还在，点任务栏即回。
+    // 还原瞬间（300ms 内）的 blur 先豁免、交给上面的补前台自救；
+    // 350ms 后复核一次，真被抢了焦点（补前台也没成功）才按失焦退下处理。
     win.on("blur", () => {
         if (win.isDestroyed()) return;
         if (!store.get("控制中心.失焦退下")) return;
+        if (Date.now() - lastRestoreAt < 300) {
+            setTimeout(() => {
+                if (win.isDestroyed()) return;
+                if (win.isFocused() || !win.isVisible()) return;
+                win.minimize();
+            }, 350);
+            return;
+        }
+        if (!win.isVisible()) return;
         win.minimize();
     });
 
