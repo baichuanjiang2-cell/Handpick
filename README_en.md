@@ -29,8 +29,8 @@ Grab either file from [Releases](https://github.com/baichuanjiang2-cell/HandPick
 
 | File | Size | Notes |
 | --- | --- | --- |
-| `handpick-15.7.4-win32-x64.exe` | ~155 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
-| `handpick-15.7.4-win32-x64.zip` | ~203 MB | Portable — unzip and run |
+| `handpick-15.7.5-win32-x64.exe` | ~155 MB | **Installer** (recommended). Wizard-based, **no admin rights needed**, creates shortcuts |
+| `handpick-15.7.5-win32-x64.zip` | ~203 MB | Portable — unzip and run |
 
 The `handpick-` prefix exists to avoid confusion with the official build (`eSearch-<version>-win32-x64.exe`). As of 15.7.3 the app itself is fully rebranded (separate appId and data directory, see [ADR 0016](docs/adr/0016-rebrand-to-handpick.md)) — HandPick and the upstream official build are two independent applications and will not overwrite each other.
 
