@@ -2659,7 +2659,9 @@ mainOn("shellSection", ([name], e) => {
                 : name === "aiVision"
                   ? "aiVision.html"
                   : "setting.html";
-        // 设置页要 require(electron/node:*)，配置跟独立设置窗口的 baseWinConfig 对齐
+        // 设置页要 require(electron/node:*)，配置跟独立设置窗口的 baseWinConfig 对齐。
+        // focusOnNavigation:false：新建视图在导航提交时会夺走键盘焦点（electron#42339），
+        // 还原壳窗口瞬间叠加一次激活抖动，正是「闪现即缩回」的帮凶之一
         const v = new WebContentsView({
             webPreferences:
                 name === "setting"
@@ -2667,11 +2669,13 @@ mainOn("shellSection", ([name], e) => {
                           nodeIntegration: true,
                           contextIsolation: false,
                           sandbox: false,
+                          focusOnNavigation: false,
                       }
                     : {
                           nodeIntegration: true,
                           contextIsolation: false,
                           webSecurity: false,
+                          focusOnNavigation: false,
                       },
         });
         shellViews.set(name, v);
